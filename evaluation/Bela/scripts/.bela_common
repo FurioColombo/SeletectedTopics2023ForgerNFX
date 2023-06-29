@@ -1,0 +1,299 @@
+#!/bin/bash
+# Check if user configuration file exists and use it if it does
+[ -f ~/.belarc ] && . ~/.belarc
+
+[ -z "$BBB_USER" ] && BBB_USER="root"
+[ -z "$BBB_HOSTNAME" ] && BBB_HOSTNAME="192.168.7.2" # this is also used below when trying to clear the cached ssh key
+[ -z "$BBB_ADDRESS" ] && BBB_ADDRESS="$BBB_USER@$BBB_HOSTNAME"
+[ -z "$BBB_BELA_HOME" ] && BBB_BELA_HOME="/root/Bela"
+[ -z "$RUN_PROJECT" ] && RUN_PROJECT=1
+[ -z "$COMMAND_ARGS" ] && COMMAND_ARGS=
+[ -z "$BBB_PROJECT_HOME" ] && BBB_PROJECT_HOME="${BBB_BELA_HOME}/projects/"
+[ -z "$RUN_MODE" ] && RUN_MODE=foreground
+[ -z "$USE_RSYNC" ] && USE_RSYNC=1
+#check if the sleep we are using supports float
+sleep 0.0001 2>/dev/null && SLEEP_SUPPORTS_FLOAT=1 || SLEEP_SUPPORTS_FLOAT=0
+[ -z "$DEFAULT_SLEEP_WHEN_WATCHING" ] && [ $SLEEP_SUPPORTS_FLOAT -eq 1 ] && DEFAULT_SLEEP_WHEN_WATCHING=0.5 || DEFAULT_SLEEP_WHEN_WATCHING=1
+
+THIS_SCRIPT=`basename "$0"`
+#trap "echo; exit 0;" 2 9
+
+copy_if_does_not_exist(){
+	_SRC=$1
+	_DEST=$2
+	_FORCE=$3
+	if [ "$_FORCE" -eq 0 ]
+	then
+		if [ $RSYNC_AVAILABLE -eq 1 ]
+		then 
+			rsync -a --ignore-existing $_SRC $BBB_ADDRESS:$_DEST
+		else
+			ssh $BBB_ADDRESS ls $_DEST &> /dev/null ||\
+			scp -q $_SRC $BBB_ADDRESS:$_DEST
+		fi
+	else
+		# if forced to, do so
+		scp -q $_SRC $BBB_ADDRESS:$_DEST
+	fi
+	return $?
+}
+
+check_rsync(){
+	if [ "$USE_RSYNC" -eq 0 ] || [ -z "`which rsync 2> /dev/null`" ]
+	then
+		return 1
+	else
+		return 0
+	fi
+}
+
+folder_has_changed(){
+	[ -z "$2" ] && { echo "Error: folder_has_changed(folder, reference, [filter])"; return 1; }
+	[ -z "$3" ] && FILTER="." || FILTER="$3"
+	# Do not watch hidden files or folders 
+	REALPATH=$(cd "$1" && pwd)
+	find "$REALPATH" -type f -not -path '*/\.*' -newer "$2" | grep "$FILTER"
+	return $?
+}
+
+wait_for_change(){
+	[ -z "$2" ] && { echo "Error: folder_has_changed(folder, reference, [filter])"; return 1; }
+	[ -z "$4" ] && SLEEP=$DEFAULT_SLEEP_WHEN_WATCHING || SLEEP="$4"
+	while ! folder_has_changed "$1" "$2" "$3"
+	do
+		sleep $SLEEP;	
+	done
+}
+
+get_board_debian_version(){
+	ssh $BBB_ADDRESS 'grep "VERSION=" /etc/os-release | sed "s/.*(\(.*\)).*/\1/g"'
+}
+
+ssh_connect_and_set_date(){
+	printf "Checking the board is up and running at $2..."
+	# Clear the host if it is cached in ~/.ssh/known_hosts.
+	ssh-keygen -R $1 &> /dev/null || true
+	ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $2 "date -s \"`date '+%Y%m%d %T %z'`\" > /dev/null" && printf "done\n" || {
+		printf "\nERROR: the board does not respond at $2, check that the address is correct and the board is connected.\n";
+		return 1;
+	}
+	return 0;
+}
+
+try_and_set_address(){
+	ssh_connect_and_set_date $1 $2 && {
+		BBB_ADDRESS=$2
+		echo "Board found at $BBB_ADDRESS"
+		return 0;
+	} || return 1;
+}
+
+check_board_alive_and_set_date(){
+	# try the specified address first
+	try_and_set_address $BBB_HOSTNAME $BBB_ADDRESS && return 0
+	# try some standard ones
+	try_and_set_address 192.168.6.2 root@192.168.6.2 && return 0
+	try_and_set_address bela.local root@bela.local && return 0
+	# this is the default, but worth checking again in case someone changed it earlier
+	try_and_set_address 192.168.7.2 root@192.168.7.2 && return 0
+	return 1
+}
+
+check_project_exists(){
+	[ -z "$1" ] && { echo "Project name is empty\n"; return 1; }
+	ssh $BBB_ADDRESS "[ -d $BBB_PROJECT_HOME/$1 ]"
+	return $?
+}
+
+check_project_exists_prompt(){
+	check_project_exists $1 &&\
+	{
+		printf "Project \`$1' already exists on the board, do you want to overwrite it? "
+		interactive 1
+		[  $_RET1 -eq 0 ] && {
+			echo "Aborting..."
+			exit;
+		}
+	}
+}
+
+list_available_projects(){
+	ssh $BBB_ADDRESS "cd $BBB_PROJECT_HOME &&\
+	find -type d -printf '%P\n' | grep -v '^$\|/build$\|\/\.\|^\.'"
+}
+
+interactive(){
+#interactive(count=1) waits for user input, validates it and sets returned value in _RET1
+	[ -z $1 ] && COUNT=1 || COUNT=$1
+	STR=
+	[ $COUNT -eq 1 ] && STR="(y/n): " || STR="(enter a number between 1 and $COUNT): "
+	while { printf "$STR"; read REPLY; }
+	do
+		if [ $COUNT -eq 1 ]
+		then
+			case $REPLY in
+				y|Y)
+					REPLY=1
+					break;
+				;;
+				n|N)
+					REPLY=0
+					break;
+				;;
+				*)
+					echo "wrong value"
+					continue
+				;;
+			esac
+		else
+			case $REPLY in
+			#check it is a string
+			''|*[!0-9]*) 
+				continue
+			;;
+			*)
+				# check range
+				if [ $REPLY -lt 1 ] || [ $REPLY -gt $COUNT ]
+				then
+					continue
+				else
+					break
+				fi
+			;;
+			esac
+		fi
+	done
+	_RET1=$REPLY
+	return 0
+}
+
+check_for_help(){
+while [ -n "$1" ]
+do
+	case $1 in
+	--help|-h|-\?)
+		usage
+		exit
+	;;
+	*)
+		echo "Error: unknown option $1"
+		usage
+		exit 1
+	;;
+	esac
+done
+}
+
+case_run_mode() {
+	case $RUN_MODE in
+		# Sorry for repeating the options, but "ssh / ssh -t" makes things complicated
+		foreground)
+			ssh -t $BBB_ADDRESS "$MAKE_COMMAND run" || exit 1
+		;;
+		screen)
+			ssh $BBB_ADDRESS "$MAKE_COMMAND runscreen"
+		;;
+		screenfg)
+			ssh -t $BBB_ADDRESS "$MAKE_COMMAND runscreenfg"
+		;;
+	esac
+}
+
+run_script_usage_brief(){
+	printf '[-f|-b] [-c "args"]'
+}
+
+run_script_usage(){
+	echo "Run options:
+	-c \"args\" : passes command-line arguments to the Bela program.
+	            please enclose the args string in quotes.
+
+	-f arg : runs in the foreground (default).
+	-b arg : runs in the background (no output is shown)
+
+	When running in the foreground you can stop the currently running program 
+	with ctrl-C.
+	When running in the background, you can use \`./stop_running.sh' to stop
+	the current process and \`./connect_to_project.sh' to see the program's output.
+
+"
+# UNDOCUMENTED OPTION -s runs in a screen in the foreground 
+}
+
+build_script_usage_brief(){
+	printf '[-n] [--watch] [--clean] [--force] [-p project-name] [-m "args"]'
+}
+
+build_script_usage(){
+echo "Build options:
+	--clean : cleans the pre-compiled object files on the board (same as \`-m projectclean').
+	          If the linker issues warnings during a build, or you see that your latest changes are not
+	          being applied to the running program, try to add the --clean flag for the next build and see 
+	          if that fixes it. 
+	
+	--watch: the script will wait for changes in the source folder and when it detects them it
+	         triggers a new build. If you do not run the program with -b, then you will have to
+			 either kill the process or detach from the screen in order for the watchdog to be active.
+	--force: does not prompt to overwrite an existing project. Also activates \`expert mode' which disables some checks and makes the program run faster
+	-n : the output will not be run after compiling.
+	-p arg : sets the name of the project in the remote folder 
+	         (defaults to the name of the project folder on the host) 
+	         do not use spaces in your project names, please
+	-m \"args\" allows to pass arguments to the Makefile before the run target. For instance,
+	           pass \`-m "projectclean"' or \`-m "distclean"' to clean project-specific
+	           pre-built objects, or all the pre-built objects, respectively.
+	           Or \`-m "help"' to see all the options available. 
+	"
+}
+
+# Don't use or eval this, just copy/paste from here
+case_scripts_options='
+run_options{
+		-c)
+			shift;
+			COMMAND_ARGS="$1";
+		;;
+		-b)
+			RUN_MODE=screen;
+		;;
+		-f)
+			RUN_MODE=foreground;
+		;;
+		-s)
+			RUN_MODE=screenfg;
+		;;
+		}
+build_options{
+		-n)
+			RUN_PROJECT=0;
+		;;
+		-p)
+			shift;
+			BBB_PROJECT_NAME="$1";
+		;;	
+		--clean)
+			BBB_MAKEFILE_OPTIONS="$BBB_MAKEFILE_OPTIONS projectclean";
+		;;
+		--force)
+			FORCE=1
+		;;
+		-m)
+			shift;
+			BBB_MAKEFILE_OPTIONS="$BBB_MAKEFILE_OPTIONS $1";
+		;;
+		--watch)
+			WATCH=1
+		;;
+}
+end_options{
+		--help|-h|-\?)
+			usage;
+			exit 0;
+		;;
+		-*)
+			echo Error: unknown option $1
+			usage_brief
+			exit 1;
+		;;
+}
+'

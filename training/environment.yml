@@ -1,0 +1,13 @@
+name: forger_nfx
+channels:
+  - defaults
+  - conda-forge
+  - auto
+dependencies:
+  - python=3.11
+  - pip=23.1.2
+  - pip:
+    - torch==2.0.0
+    - tensorboard==2.13.0
+    - librosa==0.10.0
+    - soundfile==0.12.1
