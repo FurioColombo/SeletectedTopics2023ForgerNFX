@@ -20,15 +20,15 @@ class FragmentsDatasetGenerator(DatasetGenerator):
         self.samplerate = samplerate
         self.frag_len_seconds = frag_len_seconds
 
-    def _audio_file_to_fragments(self, audio_filepath, samplerate):
+    def _audio_file_to_fragments(self, audio_filepath):
         """
         load in the sent audio file and chop it into fragments of the sent length
         """
         assert os.path.exists(audio_filepath), "Cannot find audio file " + audio_filepath
         # audio_data, sr = sf.read(audio_filepath)
 
-        audio_data = load_wav_file(audio_filepath, samplerate)
-        num_samples_per_frag = int(self.frag_len_seconds * samplerate)
+        audio_data = load_wav_file(audio_filepath, self.samplerate)
+        num_samples_per_frag = int(self.frag_len_seconds * self.samplerate)
         num_frags = int(np.ceil(len(audio_data) / num_samples_per_frag))
 
         fragments = []
@@ -50,7 +50,7 @@ class FragmentsDatasetGenerator(DatasetGenerator):
         """
         all_fragments = []
         for file in audio_files:
-            fragments = self._audio_file_to_fragments(file, self.frag_len_seconds)
+            fragments = self._audio_file_to_fragments(file)
             all_fragments.extend(fragments)
         return all_fragments
 

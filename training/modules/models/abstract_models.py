@@ -53,7 +53,8 @@ class NNModel(torch.nn.Module, ABC):
             os.mkdir(checkpoints_folder_path)
 
         # create checkpoints folder
-        curr_epoch_dir_name = config.DATASET_TARGET_FOLDER_NAME.replace('/', '') + '_' + config.MODEL_NAME
+        curr_epoch_dir_name = config.DATASET_TARGET_FOLDER_NAME.replace('/', '') + '_' + config.DATASET_TYPE + '_' \
+                              + config.MODEL_NAME
         if config.MODEL_NAME == 'lstm':
             curr_epoch_dir_name = curr_epoch_dir_name + str(config.LSTM_HIDDEN_SIZE) + '_ep' + str(curr_epoch)
         elif config.MODEL_NAME == 'conv:':

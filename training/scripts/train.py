@@ -13,7 +13,6 @@ from modules.data.generators.fragments_generator import FragmentsDatasetGenerato
 from modules.training import training
 from modules.models import lstm_model
 from modules.models import loss
-from modules.data import data
 import torch
 import os
 
@@ -32,14 +31,14 @@ writer = SummaryWriter()
 
 print("Loading dataset from folder ", config.AUDIO_FOLDER_PATH)
 
-if any(config.DATASET_NAME.lower() == id for id in ['egfx', 'single_notes']):
+if any(config.DATASET_TYPE.lower() == name for name in ['egfx', 'single_notes']):
     dataset_generator = EGFxDatasetGenerator(
         input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
         output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
         samplerate=config.SAMPLE_RATE,
         normalize_amp=True,
     )
-elif any(config.DATASET_NAME.lower() == id for id in ['myk', 'fragments']):
+elif any(config.DATASET_TYPE.lower() == name for name in ['myk', 'fragments']):
     dataset_generator = FragmentsDatasetGenerator(
         input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
         output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
@@ -57,6 +56,12 @@ train_ds, val_ds, test_ds = dataset_generator.get_train_valid_test_datasets()
 print("Done\n Looking for GPU power")
 device = training.get_device()
 
+print("Creating data loaders")
+train_dl = DataLoader(train_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
+val_dl = DataLoader(val_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
+test_dl = DataLoader(test_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
+
+
 print("Creating model")
 if config.MODEL_NAME.lower() == 'lstm'.lower():
     model = lstm_model.SimpleLSTM(hidden_size=config.LSTM_HIDDEN_SIZE).to(device)
@@ -65,11 +70,6 @@ elif config.MODEL_NAME.lower() == 'conv'.lower():
         kernel_size=config.KERNEL_SIZE,
         normalize_output=True
     )
-
-print("Creating data loaders")
-train_dl = DataLoader(train_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
-val_dl = DataLoader(val_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
-test_dl = DataLoader(test_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
 
 print("Creating optimiser")
 # https://github.com/Alec-Wright/Automated-GuitarAmpModelling/blob/main/dist_model_recnet.py
