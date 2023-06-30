@@ -1,16 +1,14 @@
 from abc import ABC, abstractmethod
 import numpy as np
-import torch
 import os
-
 from torch.utils.data import TensorDataset
+import torch
 
-from modules.utils.file_system import get_source_target_file_paths
-from modules.data.conversion_utils import convert_audio_files_to_arrays, zeropad2longest
+from modules.utils.file_system import get_source_target_file_paths, convert_audio_files_to_arrays
+from modules.utils.array_utils import zeropad_tuple_to_longest_item
 
 
 class DatasetGenerator(ABC):
-
     def __init__(self):
         pass
 
@@ -51,12 +49,6 @@ class EGFxDatasetGenerator(DatasetGenerator):
         assert len(input_file_paths) > 0, "get_files_in_folder yielded zero inputs files"
         assert len(output_file_paths) > 0, "get_files_in_folder yielded zero outputs files"
 
-        # test
-        # for idx, filename in enumerate(input_file_paths):
-        #    print('input_file_path:', str(input_file_paths[idx]))
-        #    print('output_file_paths:', str(output_file_paths[idx]))
-        #    print('correct file?', os.path.split(input_file_paths[idx])[-1] == os.path.split(output_file_paths[idx])[-1])
-
         # get wav files as np arrays
         input_arrays = convert_audio_files_to_arrays(
             audio_file_paths=input_file_paths,
@@ -68,7 +60,7 @@ class EGFxDatasetGenerator(DatasetGenerator):
         )
 
         # zeropad everything to match longest - obtain arrays of uniform length
-        input_arrays, target_arrays = zeropad2longest((input_arrays, target_arrays))
+        input_arrays, target_arrays = zeropad_tuple_to_longest_item((input_arrays, target_arrays))
 
         assert len(input_arrays) == len(target_arrays)
         assert all(len(input_arrays[0]) == len(arr) for arr in input_arrays[1:])

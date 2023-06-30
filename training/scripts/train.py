@@ -1,14 +1,12 @@
 ## This script trains an LSTM according
 ## to the method described in 
 ## A. Wright, E.-P. Damskägg, and V. Välimäki, ‘Real-time black-box modelling with recurrent neural networks’, in 22nd international conference on digital audio effects (DAFx-19), 2019, pp. 1–8.
-
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
 from _datetime import datetime
 from config import config
 from modules.models import conv_model
 import evaluate
-import resources
 
 from modules.data.dataset_generator import EGFxDatasetGenerator
 from modules.training import training
@@ -23,8 +21,6 @@ import os
 run_name = config.DATASET_TARGET_FOLDER_NAME.split('/')[1]
 date_time = datetime.now().strftime("_%m-%d-%Y_%H-%M")
 
-# dataset : need an input and output folder in this folder
-# audio_folder = "../../../data/audio_audacity_dist"
 assert os.path.exists(config.AUDIO_FOLDER_PATH), "Audio folder  not found. Looked for " + config.AUDIO_FOLDER_PATH
 # used to render example output during training
 assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for " + config.TEST_FILE_PATH

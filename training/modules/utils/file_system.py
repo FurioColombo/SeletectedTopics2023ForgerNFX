@@ -1,5 +1,6 @@
 import soundfile as sf
 import numpy as np
+import librosa
 import os
 
 
@@ -48,7 +49,8 @@ def get_source_target_file_paths(sources_folder, targets_folder, extension='.wav
     return source_file_path_list, target_file_path_list
 
 
-def load_wav_file(filename, want_samplerate):
+# ======================== AUDIO 2 NPARRAY ========================
+def load_wav_file(filename, target_samplerate):
     """
     Load a WAV file using the soundfile module, resample to 44100 Hz, and return the first channel.
     """
@@ -56,9 +58,14 @@ def load_wav_file(filename, want_samplerate):
     data, samplerate = sf.read(filename, dtype='float32')
 
     # Resample to 44100 Hz
-    if samplerate != want_samplerate:
-        print("load_wav_file warning: sample rate wrong, resampling from ", samplerate, "to", want_samplerate)
-        data = sf.resample(data, target_samplerate=want_samplerate)
+    if samplerate != target_samplerate:
+        print("load_wav_file warning: sample rate wrong, resampling from ", samplerate, "to", target_samplerate)
+        data = librosa.resample(
+            data,
+            orig_sr=samplerate,
+            target_sr=target_samplerate,
+            res_type='soxr_hq'  # todo: use best one?
+        )
 
     # If the file has more than one channel, only return the first channel
     if len(data.shape) > 1 and data.shape[1] > 1:
@@ -70,3 +77,13 @@ def load_wav_file(filename, want_samplerate):
     data = data[:, np.newaxis]
 
     return data
+
+
+def convert_audio_files_to_arrays(audio_file_paths, samplerate, zeropad=False):
+    audio_arrays = []
+    for i in range(len(audio_file_paths)):
+        # array = _audio_file2padded_array(audio_file_paths[i], samplerate) #todo: add zeropad to longest sequence
+        array = load_wav_file(audio_file_paths[i], samplerate)
+        array = np.ravel(array)
+        audio_arrays.append(array)
+    return audio_arrays
