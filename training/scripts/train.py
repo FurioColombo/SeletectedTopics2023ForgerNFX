@@ -8,7 +8,8 @@ from config import config
 from modules.models import conv_model
 import evaluate
 
-from modules.data.dataset_generator import EGFxDatasetGenerator
+from modules.data.generators.egfx_generator import EGFxDatasetGenerator
+from modules.data.generators.fragments_generator import FragmentsDatasetGenerator
 from modules.training import training
 from modules.models import lstm_model
 from modules.models import loss
@@ -31,21 +32,29 @@ writer = SummaryWriter()
 
 print("Loading dataset from folder ", config.AUDIO_FOLDER_PATH)
 
+if any(config.DATASET_NAME.lower() == id for id in ['egfx', 'single_notes']):
+    dataset_generator = EGFxDatasetGenerator(
+        input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
+        output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        samplerate=config.SAMPLE_RATE,
+        normalize_amp=True,
+    )
+elif any(config.DATASET_NAME.lower() == id for id in ['myk', 'fragments']):
+    dataset_generator = FragmentsDatasetGenerator(
+        input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
+        output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        samplerate=config.SAMPLE_RATE,
+        frag_len_seconds=1
+    )
+else:
+    assert 'ERROR: config dataset name not matching any available option'
 
-dataset_generator = EGFxDatasetGenerator(
-    input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
-    output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
-    samplerate=config.SAMPLE_RATE,
-    normalize_amp=True,
-)
+print("Generating dataset...", end='')
 dataset = dataset_generator.generate_dataset()
+print("Done\nSplitting dataset...", end='')
+train_ds, val_ds, test_ds = dataset_generator.get_train_valid_test_datasets()
 
-print('dataset:', dataset)
-
-print("Splitting dataset")
-train_ds, val_ds, test_ds = data.get_train_valid_test_datasets(dataset)
-
-print("Looking for GPU power")
+print("Done\n Looking for GPU power")
 device = training.get_device()
 
 print("Creating model")

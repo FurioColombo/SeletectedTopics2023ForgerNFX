@@ -1,6 +1,6 @@
 import math
 import shutil
-from modules.utils.file_system import get_all_file_paths_in_folder
+from modules.utils.file_system import get_file_paths_in_folder
 from librosa import note_to_midi
 
 OG_DIR = r"D:/datasets/good-sounds-datataset/good-sounds/sound_files/saxo_tenor_raul_recordings/neumann-take-number/"
@@ -67,4 +67,4 @@ def rename_files_from_note_num2guitar_fret(source_file_paths, target_folder):
             shutil.copy(file_path, new_path)
 
 
-rename_files_from_note_num2guitar_fret(get_all_file_paths_in_folder(NOTE_NAME_DIR), GUITAR_FRET_DIR)
+rename_files_from_note_num2guitar_fret(get_file_paths_in_folder(NOTE_NAME_DIR), GUITAR_FRET_DIR)

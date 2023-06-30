@@ -13,7 +13,7 @@ class NNModel(torch.nn.Module, ABC):
 
     @abstractmethod
     def __init__(self, *args, **kwargs):
-        pass
+        super().__init__(*args, **kwargs)
 
     @abstractmethod
     def forward(self, torch_in):

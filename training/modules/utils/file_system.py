@@ -4,7 +4,7 @@ import librosa
 import os
 
 
-def get_all_file_paths_in_folder(folder, extension='.wav'):
+def get_file_paths_in_folder(folder, extension='.wav'):
     """
     returns a list of files in the sent folder with the sent extension
     """
@@ -15,7 +15,7 @@ def get_all_file_paths_in_folder(folder, extension='.wav'):
     return file_list
 
 
-def get_all_file_names_in_folder(folder, extension='.wav'):
+def get_file_names_in_folder(folder, extension='.wav'):
     """
     returns a list of files in the sent folder with the sent extension
     """
@@ -30,10 +30,10 @@ def get_source_target_file_paths(sources_folder, targets_folder, extension='.wav
     """
     returns a list of files in the sent folder with the sent extension
     """
-    source_file_names_list = set(get_all_file_names_in_folder(sources_folder))
+    source_file_names_list = set(get_file_names_in_folder(sources_folder))
     source_file_path_list = []
 
-    target_file_names_list = set(get_all_file_names_in_folder(targets_folder))
+    target_file_names_list = set(get_file_names_in_folder(targets_folder))
     target_file_path_list = []
 
     common_file_names = source_file_names_list.intersection(target_file_names_list)
