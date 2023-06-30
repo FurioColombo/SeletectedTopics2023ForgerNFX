@@ -39,6 +39,17 @@ TODO
 ## Inference
 
 ### Bela Cross Compilation 
+cross compile:
+`cmake -B build -DCMAKE_TOOLCHAIN_FILE:FILEPATH=Toolchain.cmake -DRTNEURAL_XSIMD=ON .`
+`cmake --build build -j$(nproc) --target bela_executable`
+
+copy on bela
+---------------- Executable ----------------- 
+scp build/bin/bela_executable root@192.168.6.2:~/Bela/projects/bela_executable
+--------------- Model Weights --------------- 
+scp resources/model/model.json root@192.168.6.2:~/Bela/projects/bela_executable
+-------------------- GUI -------------------- 
+scp src/sketch.js root@192.168.6.2:~/Bela/projects/bela_executable
 
 ### Loading on Bela
 
