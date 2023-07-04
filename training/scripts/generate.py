@@ -17,5 +17,5 @@ loss = checkpoint['loss']
 
 evaluate.run_file_through_model(model,
                                 config.TEST_FILE_PATH,
-                                config.AUDIO_FOLDER_PATH +
+                                config.DATASET_FOLDER_PATH +
                                 "data/EGFxDataset/Clean/Middle/2-10.wav")

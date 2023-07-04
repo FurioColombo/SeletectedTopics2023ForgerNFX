@@ -21,7 +21,7 @@ import os
 run_name = config.DATASET_TARGET_FOLDER_NAME.split('/')[1]
 date_time = datetime.now().strftime("_%m-%d-%Y_%H-%M")
 
-assert os.path.exists(config.AUDIO_FOLDER_PATH), "Audio folder  not found. Looked for " + config.AUDIO_FOLDER_PATH
+assert os.path.exists(config.DATASET_FOLDER_PATH), "Audio folder  not found. Looked for " + config.DATASET_FOLDER_PATH
 # used to render example output during training
 assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for " + config.TEST_FILE_PATH
 
@@ -29,19 +29,19 @@ assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for "
 # create the logger for tensorboard
 writer = SummaryWriter()
 
-print("Loading dataset from folder ", config.AUDIO_FOLDER_PATH)
+print("Loading dataset from folder ", config.DATASET_FOLDER_PATH)
 
 if any(config.DATASET_TYPE.lower() == name for name in ['egfx', 'single_notes']):
     dataset_generator = EGFxDatasetGenerator(
-        input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
-        output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
+        output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
         samplerate=config.SAMPLE_RATE,
         normalize_amp=True,
     )
 elif any(config.DATASET_TYPE.lower() == name for name in ['myk', 'fragments']):
     dataset_generator = FragmentsDatasetGenerator(
-        input_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
-        output_audio_folder=config.AUDIO_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
+        output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
         samplerate=config.SAMPLE_RATE,
         frag_len_seconds=1
     )
