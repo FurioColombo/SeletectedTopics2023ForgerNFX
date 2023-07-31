@@ -11,8 +11,7 @@ from training.modules.data.generators.egfx_generator import EGFxDatasetGenerator
 from training.modules.data.generators.fragments_generator import FragmentsDatasetGenerator
 from training.modules.training import training
 from training.modules.models import lstm_model, conv_model
-from training.modules.models import loss
-from training.scripts import evaluate
+from training.modules.training.trainer import Trainer
 from training.config import config
 
 
@@ -81,6 +80,18 @@ if config.MODEL_CHECKPOINT is not None:
     model.load_state_dict(torch.load(config.MODEL_CHECKPOINT)['model_state_dict'])
     print('Done')
 
+trainer = Trainer(
+    model=model,
+    writer=writer,
+    run_name=run_name
+)
+
+trainer.train_model(
+    dataloader=train_dl,
+)
+
+
+'''
 print("Creating optimiser")
 # https://github.com/Alec-Wright/Automated-GuitarAmpModelling/blob/main/dist_model_recnet.py
 optimiser = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE, weight_decay=1e-4)
@@ -139,3 +150,5 @@ for epoch in range(config.MAX_EPOCHS):
         )
     print("epoch, train, val ", epoch, ep_loss, val_loss)
 
+
+'''

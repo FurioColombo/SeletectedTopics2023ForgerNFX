@@ -40,6 +40,7 @@ class NNModel(torch.nn.Module, ABC):
             'loss': curr_loss,
         }, outfile)
 
+
     def save_model(self, out_dir, curr_epoch, optimizer, curr_loss):
         # data for folder names
         now = datetime.now()
@@ -91,3 +92,4 @@ class NNModel(torch.nn.Module, ABC):
         print("saved model checkpoints in", curr_epoch_dir_path, "folder")
 
         return curr_epoch_dir_path
+
