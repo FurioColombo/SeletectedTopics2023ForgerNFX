@@ -1,6 +1,6 @@
 import math
 import shutil
-from modules.utils.file_system import get_file_paths_in_folder
+from training.modules.utils.file_system import get_file_paths_in_folder
 from librosa import note_to_midi
 
 OG_DIR = r"D:/datasets/good-sounds-datataset/good-sounds/sound_files/saxo_tenor_raul_recordings/neumann-take-number/"

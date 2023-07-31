@@ -1,20 +1,19 @@
 ## This script trains an LSTM according
-## to the method described in 
+## to the method described in
 ## A. Wright, E.-P. Damskägg, and V. Välimäki, ‘Real-time black-box modelling with recurrent neural networks’, in 22nd international conference on digital audio effects (DAFx-19), 2019, pp. 1–8.
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
 from _datetime import datetime
-from config import config
-from modules.models import conv_model
-import evaluate
-
-from modules.data.generators.egfx_generator import EGFxDatasetGenerator
-from modules.data.generators.fragments_generator import FragmentsDatasetGenerator
-from modules.training import training
-from modules.models import lstm_model
-from modules.models import loss
 import torch
 import os
+
+from training.modules.data.generators.egfx_generator import EGFxDatasetGenerator
+from training.modules.data.generators.fragments_generator import FragmentsDatasetGenerator
+from training.modules.training import training
+from training.modules.models import lstm_model, conv_model
+from training.modules.models import loss
+from training.scripts import evaluate
+from training.config import config
 
 
 # used for the writing of example outputs
@@ -35,6 +34,7 @@ if any(config.DATASET_TYPE.lower() == name for name in ['egfx', 'single_notes'])
     dataset_generator = EGFxDatasetGenerator(
         input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
         output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        block_size=config.NN_IN_BLOCK_SIZE,
         samplerate=config.SAMPLE_RATE,
         normalize_amp=True,
     )
@@ -42,6 +42,7 @@ elif any(config.DATASET_TYPE.lower() == name for name in ['myk', 'fragments']):
     dataset_generator = FragmentsDatasetGenerator(
         input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
         output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        block_size=config.NN_IN_BLOCK_SIZE,
         samplerate=config.SAMPLE_RATE,
         frag_len_seconds=1
     )
@@ -61,15 +62,24 @@ train_dl = DataLoader(train_ds, batch_size=config.BATCH_SIZE, shuffle=True, gene
 val_dl = DataLoader(val_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
 test_dl = DataLoader(test_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
 
-
 print("Creating model")
 if config.MODEL_NAME.lower() == 'lstm'.lower():
-    model = lstm_model.SimpleLSTM(hidden_size=config.LSTM_HIDDEN_SIZE).to(device)
+    model = lstm_model.SimpleLSTM(
+        hidden_size=config.LSTM_HIDDEN_SIZE,
+        samples_to_process=config.NN_IN_BLOCK_SIZE
+    ).to(device)
 elif config.MODEL_NAME.lower() == 'conv'.lower():
     model = conv_model.SimpleConv1d(
         kernel_size=config.KERNEL_SIZE,
         normalize_output=True
-    )
+    ).to(device)
+else:
+    model = None
+assert model is not None
+if config.MODEL_CHECKPOINT is not None:
+    print('loading model checkpoint... ', end='')
+    model.load_state_dict(torch.load(config.MODEL_CHECKPOINT)['model_state_dict'])
+    print('Done')
 
 print("Creating optimiser")
 # https://github.com/Alec-Wright/Automated-GuitarAmpModelling/blob/main/dist_model_recnet.py
@@ -128,3 +138,4 @@ for epoch in range(config.MAX_EPOCHS):
             outfile=checkpoint_path + '/' + run_name + str(epoch) + ".wav",
         )
     print("epoch, train, val ", epoch, ep_loss, val_loss)
+

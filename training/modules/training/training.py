@@ -2,8 +2,8 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 
-from modules.models import conv_model
-from modules.models import lstm_model
+from training.modules.models import conv_model
+from training.modules.models import lstm_model
 
 
 def get_device():
@@ -66,13 +66,14 @@ def train_epoch_interval(model: torch.nn.Module,  # torch.nn.Module,
     warm_up_len=how many samples to feed in before calculating loss so the delay line can warm up(!)
     update_interval=how many samples to process before updating weights within a batch I think relates to Truncated BPTT
     """
+
     batch_losses = []
     # note that if the dataloader has shuffle set to true
     # it will shuffle the batches every time you create 
     # an iterator 
     for batch_idx, (inputs, targets) in enumerate(dataloader):
         inputs, targets = inputs.to(device), targets.to(device)
-        if model is lstm_model.SimpleLSTM:
+        if type(model) is lstm_model.SimpleLSTM:
             model.zero_on_next_forward()
             model.forward(inputs[:, 0:warm_up_len, :])
 
@@ -82,7 +83,7 @@ def train_epoch_interval(model: torch.nn.Module,  # torch.nn.Module,
             model.forward(inputs[:, :, 0:warm_up_len])
         # warm up. shape: [batch,sequence,feature]
         model.zero_grad()
-        # now we iterate over in chunks of 2048
+        # now we iterate over in chunks
         # training at each step
         if sub_batch_seq_len > 0:
             available_sub_batches = int(np.floor(inputs.shape[1] / sub_batch_seq_len))

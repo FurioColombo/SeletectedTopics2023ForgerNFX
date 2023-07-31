@@ -5,7 +5,7 @@ import json
 from json.encoder import JSONEncoder
 
 import torch
-from config import config
+from training.config import config
 from abc import ABC, abstractmethod
 
 
@@ -54,7 +54,7 @@ class NNModel(torch.nn.Module, ABC):
 
         # create checkpoints folder
         curr_epoch_dir_name = config.DATASET_TARGET_FOLDER_NAME.replace('/', '') + '_' + config.DATASET_TYPE + '_' \
-                              + config.MODEL_NAME
+                              + 'bl' + str(config.NN_IN_BLOCK_SIZE) + config.MODEL_NAME
         if config.MODEL_NAME == 'lstm':
             curr_epoch_dir_name = curr_epoch_dir_name + str(config.LSTM_HIDDEN_SIZE) + '_ep' + str(curr_epoch)
         elif config.MODEL_NAME == 'conv:':

@@ -2,8 +2,8 @@ import os
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset
-from modules.utils.file_system import load_wav_file, get_file_paths_in_folder
-from modules.data.dataset_generator import DatasetGenerator
+from training.modules.utils.file_system import load_wav_file, get_file_paths_in_folder
+from training.modules.data.dataset_generator import DatasetGenerator
 
 
 # based on MYK dataset generation
@@ -12,11 +12,13 @@ class FragmentsDatasetGenerator(DatasetGenerator):
     def __init__(self,
                  input_audio_folder,
                  output_audio_folder,
+                 block_size,
                  samplerate=44100,
                  frag_len_seconds=2):
         super().__init__()
         self.input_audio_folder = input_audio_folder
         self.output_audio_folder = output_audio_folder
+        self.block_size = block_size
         self.samplerate = samplerate
         self.frag_len_seconds = frag_len_seconds
 
@@ -81,14 +83,14 @@ class FragmentsDatasetGenerator(DatasetGenerator):
             input_fragments = input_fragments[0:len(output_fragments)]
         else:
             output_fragments = output_fragments[0:len(input_fragments)]
-        print("generate_dataset:: Loaded frames from audio file", len(input_fragments))
-        # Convert input and output fragments to PyTorch tensors
-        # noting that the normal shape for an input to an LSTM
-        # is (sequence_length, batch_size, input_size]
-        # so input_fragments[0]
+
+        print("generate_dataset: Loaded frames from audio file", len(input_fragments))
+        # normal shape for LSTM input: (sequence_length, batch_size, input_size]
         input_tensor = torch.tensor(np.array(input_fragments))
-        print("input tensor shape", input_tensor.shape)
         output_tensor = torch.tensor(np.array(output_fragments))
+        input_tensor, output_tensor = self._reshape_block_size(input_tensor, output_tensor)
+        print("input dataset tensors' shape", input_tensor.shape)
+
         dataset = TensorDataset(input_tensor, output_tensor)
         self.dataset = dataset
         return dataset

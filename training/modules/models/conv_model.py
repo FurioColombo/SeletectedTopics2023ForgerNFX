@@ -1,8 +1,6 @@
 ## A. Wright, E.-P. Damskägg, and V. Välimäki, ‘Real-time black-box modelling with recurrent neural networks’, in 22nd international conference on digital audio effects (DAFx-19), 2019, pp. 1–8.
 import torch
-from modules.models.abstract_models import NNModel
-
-from config import config
+from training.modules.models.abstract_models import NNModel
 
 
 class SimpleConv1d(NNModel):
@@ -39,4 +37,3 @@ class SimpleConv1d(NNModel):
             return self.tanh(dense)
         else:
             return dense
-

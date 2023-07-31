@@ -1,7 +1,7 @@
 import evaluate
-from modules.models import models
-from modules.training import training
-from config import config
+from training.modules.models import models
+from training.modules.training import training
+from training.config import config
 import torch
 
 device = training.get_device()

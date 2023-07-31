@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from torch.utils.data import TensorDataset
 from torch.utils.data import random_split
+import torch
 import numpy as np
 
 
@@ -8,6 +9,7 @@ class DatasetGenerator(ABC):
 
     def __init__(self):
         self.dataset = None
+        self.block_size = None
 
     @abstractmethod
     def generate_dataset(self):
@@ -45,6 +47,25 @@ class DatasetGenerator(ABC):
 
         train_dataset, val_dataset, test_dataset = random_split(self.dataset, [train_size, val_size, test_size])
         return train_dataset, val_dataset, test_dataset
+
+    # adjust block size for the model requirements
+    def _reshape_block_size(self, input_tensor, output_tensor):
+        dataset_shape = (input_tensor.shape[0], int(input_tensor.shape[1] / self.block_size), self.block_size)
+        input_tensor = input_tensor[:, :-(input_tensor.shape[1] % self.block_size) or None, :]
+        print(output_tensor[:, :-(input_tensor.shape[1] % self.block_size) or None, :].shape)
+        input_tensor = torch.reshape(
+            input_tensor,
+            shape=dataset_shape
+        )
+        output_tensor = output_tensor[:, :-(output_tensor.shape[1] % self.block_size) or None, :]
+        output_tensor = torch.reshape(
+            output_tensor,
+            shape=dataset_shape
+        )
+        print(input_tensor.shape)
+        print(output_tensor.shape)
+        assert input_tensor.size() == output_tensor.size()
+        return input_tensor, output_tensor
 
 
 
