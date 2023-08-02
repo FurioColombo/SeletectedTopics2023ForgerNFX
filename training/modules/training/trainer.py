@@ -1,5 +1,8 @@
-import datetime
 import os
+import datetime
+import shutil
+import pathlib
+
 import torch
 import numpy as np
 from training.config import config
@@ -76,13 +79,15 @@ class Trainer:
             evaluate.test_model(
                 model=self.model,
                 indata=dataloader,
-                outfile=checkpoint_path + '/' + self.run_name + str(epoch) + "singleNote.wav",
+                out_dir=checkpoint_path,
+                file_name=self.run_name + str(epoch) + "singleNote.wav"
             )
             # if epoch % 10 == 0:  # save an example processed audio file
             evaluate.run_file_through_model(
                 model=self.model,
                 infile=config.TEST_FILE_PATH,
-                outfile=checkpoint_path + '/' + self.run_name + str(epoch) + ".wav",
+                out_dir=checkpoint_path,
+                file_name=self.run_name + str(epoch) + ".wav"
             )
 
             self._save_training_data(
@@ -91,10 +96,12 @@ class Trainer:
                 ep_loss=ep_loss,
                 val_loss=val_loss
             )
+            self._save_config(checkpoint_path=checkpoint_path)
+
         print("epoch, train, val ", epoch, ep_loss, val_loss)
 
     def _save_training_data(self, checkpoint_path, epoch, ep_loss, val_loss):
-        # training data
+        # training data folder
         training_data_checkpoints_folder_path = os.path.join(checkpoint_path, 'training_data')  # /checkpoints/pytorch
         if not os.path.isdir(training_data_checkpoints_folder_path):
             os.mkdir(training_data_checkpoints_folder_path)
@@ -110,5 +117,9 @@ class Trainer:
         training_time_min = round(training_time_s / 60, 3)
         np.save(os.path.join(training_data_checkpoints_folder_path, 'training_time'), np.array(training_time_min))
 
-
-
+    def _save_config(self, checkpoint_path):
+        # config folder
+        config_checkpoints_folder_path = os.path.join(checkpoint_path, 'config')  # /checkpoints/pytorch
+        if not os.path.isdir(config_checkpoints_folder_path):
+            os.mkdir(config_checkpoints_folder_path)
+        shutil.copy(src=os.path.abspath(config.__file__), dst=config_checkpoints_folder_path)

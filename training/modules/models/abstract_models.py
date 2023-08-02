@@ -40,39 +40,47 @@ class NNModel(torch.nn.Module, ABC):
             'loss': curr_loss,
         }, outfile)
 
-
     def save_model(self, out_dir, curr_epoch, optimizer, curr_loss):
         # data for folder names
         now = datetime.now()
         date_time = now.strftime("_%m-%d-%Y_%H-%M")
 
         # create paths variables and folders
-
         # checkpoints folder
         checkpoints_folder_path = os.path.join(out_dir, 'checkpoints')  # resources/checkpoints
         if not os.path.isdir(checkpoints_folder_path):
             os.mkdir(checkpoints_folder_path)
 
         # create checkpoints folder
-        curr_epoch_dir_name = config.DATASET_TARGET_FOLDER_NAME.replace('/', '') + '_' + config.DATASET_TYPE + '_' \
+        train_dir_name = config.DATASET_TARGET_FOLDER_NAME.replace('/', '') + '_' + config.DATASET_TYPE + '_' \
                               + 'bl' + str(config.NN_IN_BLOCK_SIZE) + config.MODEL_NAME
         if config.MODEL_NAME == 'lstm':
-            curr_epoch_dir_name = curr_epoch_dir_name + str(config.LSTM_HIDDEN_SIZE) + '_ep' + str(curr_epoch)
+            train_dir_name = train_dir_name + str(config.LSTM_HIDDEN_SIZE)
         elif config.MODEL_NAME == 'conv:':
-            curr_epoch_dir_name = curr_epoch_dir_name + str(config.KERNEL_SIZE) + '_ep' + str(curr_epoch)
+            train_dir_name = train_dir_name + str(config.KERNEL_SIZE)
         else:
             assert 'ERROR: config model name not recognised'
-        curr_epoch_dir_path = os.path.join(checkpoints_folder_path, curr_epoch_dir_name)
+
+        training_out_dir_path = os.path.join(checkpoints_folder_path, train_dir_name)
+        if not os.path.isdir(training_out_dir_path):
+            os.mkdir(training_out_dir_path)
+
+        curr_epoch_dir_path = os.path.join(training_out_dir_path, '_ep' + str(curr_epoch))
         if not os.path.isdir(curr_epoch_dir_path):
             os.mkdir(curr_epoch_dir_path)
 
+        # model weights folder
+        model_weights_folder_path = os.path.join(curr_epoch_dir_path, 'model_weights')  # /checkpoints/pytorch
+        if not os.path.isdir(model_weights_folder_path):
+            os.mkdir(model_weights_folder_path)
+
         # pytorch
-        torch_checkpoints_folder_path = os.path.join(curr_epoch_dir_path, 'pytorch')  # /checkpoints/pytorch
+        torch_checkpoints_folder_path = os.path.join(model_weights_folder_path, 'pytorch')  # /checkpoints/pytorch
         if not os.path.isdir(torch_checkpoints_folder_path):
             os.mkdir(torch_checkpoints_folder_path)
 
         # rtneural
-        rtneural_checkpoints_folder_path = os.path.join(curr_epoch_dir_path, 'rtneural')  # /checkpoints/rtneural
+        rtneural_checkpoints_folder_path = os.path.join(model_weights_folder_path, 'rtneural')  # /checkpoints/rtneural
         if not os.path.isdir(rtneural_checkpoints_folder_path):
             os.mkdir(rtneural_checkpoints_folder_path)
 
@@ -92,4 +100,3 @@ class NNModel(torch.nn.Module, ABC):
         print("saved model checkpoints in", curr_epoch_dir_path, "folder")
 
         return curr_epoch_dir_path
-
