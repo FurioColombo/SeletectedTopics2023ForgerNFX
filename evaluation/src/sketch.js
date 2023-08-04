@@ -28,7 +28,7 @@ let activeFXButton = 0;
 let isFXOn = 0;
 
 function setup() {
-	createCanvas(windowWidth, 3300);
+	createCanvas(windowWidth+70, windowHeight);
 
     offColor = color(0, 10, 10, 100);
     onColor = color(50, 110, 110, 110);

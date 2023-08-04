@@ -20,7 +20,4 @@ config/config.ini
 *.ogg
 *.flac
 *.local
-
-resources/
-
 config.py
