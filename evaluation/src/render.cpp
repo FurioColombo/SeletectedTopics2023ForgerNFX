@@ -1,6 +1,6 @@
-#include <Bela.h>
 #include "../Bela/libraries/Gui/Gui.h"
 #include "../RTNeural/RTNeural/RTNeural.h"
+#include <Bela.h>
 #include <cmath>
 #include <iostream>
 #include <typeinfo>
@@ -8,9 +8,9 @@
 Gui gui;
 
 // Model paths
-const auto tubeScreamerModelFilePath = "TubeScreamerNeck_egfx_bl1lstm7.json";
-const auto bluesDriverModelFilePath = "BluesDriverNeck_egfx_bl1lstm7.json";
-const auto RATModelFilePath = "RATNeck_egfx_bl1lstm7.json";
+const auto tubeScreamerModelFilePath = "TubeScreamerNeck_egfx_bl1lstm6.json";
+const auto bluesDriverModelFilePath = "BluesDriverNeck_egfx_bl1lstm6.json";
+const auto RATModelFilePath = "RATNeck_egfx_bl1lstm6.json";
 
 // Fx indexes
 const int CLEAN_FX_IDX = 0;
@@ -64,12 +64,12 @@ void _render_wet_fx(BelaContext *context, unsigned int nFrames, ModelType &model
         }
     } else {
         float inputs[nFrames] = { 0 };
-        float outputs[nFrames] = { 0 };
+        float output = 0;
         // Read audio input
         for(unsigned int n = 0; n < nFrames; n++) {
             inputs[n] = audioRead(context, n, 0);
         }
-        outputs[0] = model.forward(&inputs[0]);
+        output = model.forward(&inputs[0]);
         auto& dense = model.get<1>();
 
         // Write audio output
