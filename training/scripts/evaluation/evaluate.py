@@ -1,8 +1,6 @@
 import random
-
 import numpy as np
 from torch.utils.data import DataLoader
-
 import config
 from training.modules.utils.file_system import load_wav_file
 import soundfile

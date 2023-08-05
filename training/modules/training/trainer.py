@@ -1,14 +1,12 @@
 import os
 import datetime
 import shutil
-import pathlib
-
 import torch
 import numpy as np
 from training.config import config
 from training.modules.models import loss
 from training.modules.training import training
-from training.scripts import evaluate
+from training.scripts.evaluation import evaluate
 
 
 class Trainer:

@@ -39,3 +39,22 @@ def plot_dataset_couple(dataset, dataset_index=0, random_sample=False):
 
     plt.show()
 
+
+def plot_mse_history(eval_mse_history):
+    # setup figure
+    plt.figure()
+    sns.set_theme()
+
+    # prepare data
+    data =
+    x =
+    y =
+
+
+    # plot - hist or lineplot??
+    # sns.histplot(data=eval_mse_history, x="flipper_length_mm", kde=True)
+    # Plot the responses for different events and regions
+    sns.lineplot(x="timepoint", y="signal",
+                 hue="region", style="event",
+                 data=???)
+
