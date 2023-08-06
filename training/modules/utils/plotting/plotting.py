@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
 import torch
 
 from training.config import config
@@ -40,21 +41,56 @@ def plot_dataset_couple(dataset, dataset_index=0, random_sample=False):
     plt.show()
 
 
-def plot_mse_history(eval_mse_history):
-    # setup figure
-    plt.figure()
-    sns.set_theme()
+def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3):
 
-    # prepare data
-    data =
-    x =
-    y =
+    # setup data
+    """epochs_train = train_mse_history[:,0]
+    mse_train_values = train_mse_history[:, 1]"""
+    epochs_eval_1 = eval_mse_history_1[:,0]
+    mse_eval_values_1 = eval_mse_history_1[:,1] #RAT
+    epochs_eval_2 = eval_mse_history_2[:,0]
+    mse_eval_values_2 = eval_mse_history_2[:,1] #BluesDriver
+    epochs_eval_3 = eval_mse_history_3[:,0]
+    mse_eval_values_3 = eval_mse_history_3[:,1] #TubeScreamer
 
+    # setup dataframes for Seaborn
+    """data_train = {
+        'Epochs': epochs_train,
+        'MSE Train': mse_train_values
+    }
+    df_train = pd.DataFrame(data_train)"""
 
-    # plot - hist or lineplot??
-    # sns.histplot(data=eval_mse_history, x="flipper_length_mm", kde=True)
-    # Plot the responses for different events and regions
-    sns.lineplot(x="timepoint", y="signal",
-                 hue="region", style="event",
-                 data=???)
+    #RAT dataframe
+    data_eval_1 = {
+    'Epochs': epochs_eval_1,
+    'MSE Evaluation': mse_eval_values_1
+    }
+    df_eval_1 = pd.DataFrame(data_eval_1)
+
+    #BluesDriver dataframe
+    data_eval_2 = {
+    'Epochs': epochs_eval_2,
+    'MSE Evaluation': mse_eval_values_2
+    }
+    df_eval_2 = pd.DataFrame(data_eval_2)
+
+    #TubeScreamer dataframe
+    data_eval_3 = {
+    'Epochs': epochs_eval_3,
+    'MSE Evaluation': mse_eval_values_3
+    }
+    df_eval_3 = pd.DataFrame(data_eval_3)
+
+    plt.figure(figsize=(20,12))
+    sns.set_theme(style="whitegrid", palette="pastel")
+    sns.lineplot(data=df_eval_1, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT', marker='o')
+    sns.lineplot(data=df_eval_2, x='Epochs', y='MSE Evaluation', label='MSE Evaluation BluesDriver', marker='o')
+    sns.lineplot(data=df_eval_3, x='Epochs', y='MSE Evaluation', label='MSE Evaluation TubeScreamer', marker='o')
+
+    plt.xlabel('Epochs')
+    plt.ylabel('MSE')
+    plt.title('MSE History')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
