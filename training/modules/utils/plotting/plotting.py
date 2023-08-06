@@ -58,7 +58,7 @@ def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3,
     epochs_eval_3_16 = eval_mse_history_3_16[:,0] #TubeScreamer bs16
     mse_eval_values_3_16 = eval_mse_history_3_16[:,1]
     
-    # setup dataframes for Seaborn - if normalizated data change values with correspondent "norm" data
+    # setup dataframes for Seaborn
 
     #RAT dataframe
     data_eval_1 = {
