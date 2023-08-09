@@ -13,7 +13,7 @@ const auto bluesDriverModelBl1FilePath =   "BluesDriverNeck_egfx_bl1lstm6.json";
 const auto RATModelBl1FilePath =           "RATNeck_egfx_bl1lstm6.json";
 const auto tubeScreamerModelBl16FilePath = "TubeScreamerNeck_egfx_bl16lstm64.json";
 const auto bluesDriverModelBl16FilePath =  "BluesDriverNeck_egfx_bl16lstm64.json";
-const auto RATModelBl16FilePath =          "TubeScreamerNeck_egfx_bl16lstm64.json";
+const auto RATModelBl16FilePath =          "RATNeck_egfx_bl16lstm64.json";
 
 // Fx indexes
 const int CLEAN_FX_IDX = 0;
