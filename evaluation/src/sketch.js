@@ -8,6 +8,8 @@ let pedalBackgroundColor;
 // indices
 const BUFFER_ONOFF_IDX = 0
 const BUFFER_ACTIVE_FX_IDX = 1
+const BUFFER_MODEL_BLOCK_SIZE_IDX = 2
+
 
 // FX BUTTONS
 // indices
@@ -23,9 +25,10 @@ const buttonNames = ['Clean', 'TubeScreamer', 'BluesDriver', 'RAT']
 // 4 buttons [clean, TubeScreamer, BluesDriver, RAT]
 // 1 slider [Volume]
 // buffer: [isFxOn, activeFXButton]
-let buffer = [1, 0];
+let buffer = [1, 0, 1];
 let activeFXButton = 0;
 let isFXOn = 0;
+let blockSize = 1;
 
 function setup() {
 	createCanvas(windowWidth+70, windowHeight);
@@ -38,6 +41,7 @@ function setup() {
 	// Create Distorsion type buttons
     onOffButtonCenter = createButton("")
     fxSwitchButtonCenter = createButton("")
+    blSwitchPin = createButton("");
     ledIndicator = createDiv()
     cleanFXLedIndicator = createDiv()
     tubeScreamerFXLedIndicator = createDiv()
@@ -63,6 +67,7 @@ function draw() {
     //store values in the buffer
 	buffer[BUFFER_ONOFF_IDX] = isFXOn;
 	buffer[BUFFER_ACTIVE_FX_IDX] = activeFXButton;
+    buffer[BUFFER_MODEL_BLOCK_SIZE_IDX] = blockSize;
 
 	//SEND BUFFER to Bela. Buffer has index 0 (to be read by Bela),
 	//contains floats and sends the 'buffer' array.
@@ -78,6 +83,10 @@ function attachButtonListeners() {
 
     fxSwitchButtonCenter.mouseClicked( function(){
         selectNextFx();
+    });
+
+    blSwitchPin.mouseClicked( function(){
+        changeBlockSize();
     })
 }
 
@@ -133,15 +142,15 @@ function formatDOMElements() {
     // --------------------- TOP LABELS ---------------------
     let cleanBorderLabel = createSpan("CLEAN")
     cleanBorderLabel.parent(borderTop)
-    cleanBorderLabel.style("top", "10%")
+    cleanBorderLabel.style("top", "14.5%")
     cleanBorderLabel.style("left", "-2.325em")
     cleanBorderLabel.style("transform", " rotate(90deg)")
     setBorderSpanStyle(cleanBorderLabel)
 
     let tubeScreamerBorderLabel = createSpan("TUBE ")
     tubeScreamerBorderLabel.parent(borderTop)
-    tubeScreamerBorderLabel.style("top", "12%")
-    tubeScreamerBorderLabel.style("right", "-2.025em")
+    tubeScreamerBorderLabel.style("top", "14.5%")
+    tubeScreamerBorderLabel.style("right", "-2.05em")
     tubeScreamerBorderLabel.style("transform", " rotate(-90deg)")
     setBorderSpanStyle(tubeScreamerBorderLabel)
 
@@ -155,9 +164,16 @@ function formatDOMElements() {
     let RATBorderLabel = createSpan("RAT")
     RATBorderLabel.parent(borderTop)
     RATBorderLabel.style("top", "45%")
-    RATBorderLabel.style("right", "-1.65em")
+    RATBorderLabel.style("right", "-1.7em")
     RATBorderLabel.style("transform", " rotate(-90deg)")
     setBorderSpanStyle(RATBorderLabel)
+
+    let blockSizeLabel = createSpan("BS")
+    blockSizeLabel.parent(borderTop)
+    blockSizeLabel.style("top", "68%")
+    blockSizeLabel.style("right", "-1.35em")
+    blockSizeLabel.style("transform", " rotate(-90deg)")
+    setBorderSpanStyle(blockSizeLabel)
 
 
     // --------------------- BOT BORDERS ---------------------
@@ -209,6 +225,48 @@ function formatDOMElements() {
     RATFXLedIndicator.style("left", "72.5%")
     setFxTypeLedStyle(RATFXLedIndicator)
 
+    // ================ BLOCK SIZE ===============
+    // ---------------- switch ----------------
+    let blSwitch = createDiv();
+    blSwitch.parent(borderTop);
+    blSwitch.style("left", "72.5%");
+    blSwitch.style("top", "70%");
+    blSwitch.style("margin-left", "-.6em");
+    blSwitch.style("display", "flex");
+    blSwitch.style("align-items", "center")
+    blSwitch.style("justify-content", "center")
+    blSwitch.style("position", "relative")
+    blSwitch.style("width", "1.6em")
+    blSwitch.style("height", ".15em")
+    blSwitch.style("background-color", "#134993")
+    blSwitch.style("border-radius", "4px")
+    blSwitch.style("transition-duration", ".3s")
+    blSwitch.style("box-shadow", "inset 1px 1px 3px rgba(0, 0, 0, 0.6), inset -1px -1px 3px rgba(0, 0, 0, 0.6)")
+
+    blSwitchPin.parent(blSwitch);
+    blSwitchPin.style("position", "absolute");
+    blSwitchPin.style("height", "0.5em");
+    blSwitchPin.style("width", "0.1em");
+    blSwitchPin.style("left", "0%");
+    blSwitchPin.style("margin-left", "0.15em");
+    blSwitchPin.style("border", "0");
+    blSwitchPin.style("cursor", "pointer")
+    blSwitchPin.style("background", "conic-gradient(rgb(104, 104, 104),white,rgb(104, 104, 104),white,rgb(104, 104, 104))");
+    blSwitchPin.style("border-radius", "50%");
+    blSwitchPin.style("box-shadow", "5px 3px 5px rgba(8, 8, 8, 0.708)");
+
+
+    // ---------------- labels ----------------
+    let blockSize1Label = createSpan("1");
+    blockSize1Label.parent(borderTop);
+    blockSize1Label.style("top", "74%");
+    blockSize1Label.style("left", "64%");
+    setBlockSizeLabelStyle(blockSize1Label);
+    let blockSize16Label = createSpan("16");
+    blockSize16Label.parent(borderTop);
+    blockSize16Label.style("top", "74%");
+    blockSize16Label.style("left", "80%");
+    setBlockSizeLabelStyle(blockSize16Label);
 
     // ================ PEDAL TITLES ================
     let modelText = createP("FORGER<strong>NFX<strong>")
@@ -272,8 +330,8 @@ function formatDOMElements() {
 
     let onOffButtonHex3 = createDiv()
     onOffButtonHex3.parent(onOffButtonHex)
-    onOffButtonHex3.style("float", "left")
     onOffButtonHex3.style("width", "0")
+    onOffButtonHex3.style("margin-left", "1.5em")
     onOffButtonHex3.style("border-left", ".5em solid #9e9e9e")
     onOffButtonHex3.style("border-top", ".866em solid transparent")
     onOffButtonHex3.style("border-bottom", ".866em solid transparent")
@@ -290,6 +348,8 @@ function formatDOMElements() {
     onOffButtonCenter.style("border", "0")
     onOffButtonCenter.style("margin-top", "-.75em")
     onOffButtonCenter.style("margin-left", "-.75em")
+    onOffButtonCenter.style("cursor", "pointer")
+
 
     // ---------------- PEDAL FX SWITCH BUTTON ----------------
     let fxSwitchButton = createDiv()
@@ -329,8 +389,8 @@ function formatDOMElements() {
 
     let fxSwitchButtonHex3 = createDiv()
     fxSwitchButtonHex3.parent(fxSwitchButtonHex)
-    fxSwitchButtonHex3.style("float", "left")
     fxSwitchButtonHex3.style("width", "0")
+    fxSwitchButtonHex3.style("margin-left", "1.5em")
     fxSwitchButtonHex3.style("border-left", ".5em solid #9e9e9e")
     fxSwitchButtonHex3.style("border-top", ".866em solid transparent")
     fxSwitchButtonHex3.style("border-bottom", ".866em solid transparent")
@@ -347,6 +407,7 @@ function formatDOMElements() {
     fxSwitchButtonCenter.style("border", "0")
     fxSwitchButtonCenter.style("margin-top", "-.75em")
     fxSwitchButtonCenter.style("margin-left", "-.75em")
+    fxSwitchButtonCenter.style("cursor", "pointer")
 
     // ----------------  ON/OFF LED INDICATOR ----------------
     ledIndicator.parent(borderBottom)
@@ -409,6 +470,18 @@ function changeOnOffButtonState() {
     }
 }
 
+// switch btw block size 1 and 16
+function changeBlockSize() {
+    if(blockSize == 1) {
+        blockSize = 16
+        blSwitchPin.style("left", "40%")
+    } else if (blockSize == 16) {
+        blockSize = 1
+        blSwitchPin.style("left", "0%")
+
+    }
+}
+
 // select next FX
 function selectNextFx() {
     activeFXButton += 1
@@ -445,4 +518,17 @@ function setDefaultFxButtonStyle(button) {
 	button.style('border-radius', '50%');
     button.style('background-color', col);
 	button.style('color', 'white');
+}
+
+function setBlockSizeLabelStyle(label){
+    label.style("font-weight", "800");
+    label.style("color", "#fffddd");
+    label.style("background", "#134993");
+    label.style("letter-spacing", "-0.6px");
+    label.style("padding", "0 .25em");
+    label.style("margin", "0");
+    label.style("position", "absolute");
+    label.style("line-height", "1.2em");
+    label.style("font-size", "0.2em");
+    label.style("font-family", "Helvetica");
 }
