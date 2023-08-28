@@ -103,7 +103,7 @@ def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3,
     df_eval_3_16 = pd.DataFrame(data_eval_3_16)
 
     plt.figure(figsize=(20,12))
-    sns.set_theme(style="whitegrid", palette="pastel")
+    sns.set_theme(style="whitegrid", palette="coolwarm")
     sns.lineplot(data=df_eval_1, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT', marker='o')
     sns.lineplot(data=df_eval_1_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT bs 16', marker='o')
     sns.lineplot(data=df_eval_2, x='Epochs', y='MSE Evaluation', label='MSE Evaluation BluesDriver', marker='o')
@@ -119,21 +119,12 @@ def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3,
     plt.show()
 
 
-"""def normalize(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3, eval_mse_history_1_16, eval_mse_history_2_16, eval_mse_history_3_16):
+def plot_mse_datasets(eval_mse_history_1, eval_mse_history_2):
     # setup data
-    epochs_eval_1 = eval_mse_history_1[:,0] #RAT
+    epochs_eval_1 = eval_mse_history_1[:,0] #RAT EGFX dataset
     mse_eval_values_1 = eval_mse_history_1[:,1] 
-    epochs_eval_2 = eval_mse_history_2[:,0] #BluesDriver
+    epochs_eval_2 = eval_mse_history_2[:,0] #RAT Fragments dataset
     mse_eval_values_2 = eval_mse_history_2[:,1] 
-    epochs_eval_3 = eval_mse_history_3[:,0] #TubeScreamer
-    mse_eval_values_3 = eval_mse_history_3[:,1] 
-
-    epochs_eval_1_16 = eval_mse_history_1_16[:,0] #RAT bs16
-    mse_eval_values_1_16 = eval_mse_history_1_16[:,1]
-    epochs_eval_2_16 = eval_mse_history_2_16[:,0] #BluesDriver bs16
-    mse_eval_values_2_16 = eval_mse_history_2_16[:,1]
-    epochs_eval_3_16 = eval_mse_history_3_16[:,0] #TubeScreamer bs16
-    mse_eval_values_3_16 = eval_mse_history_3_16[:,1]
 
     # normalization with MinMax
     scaler_epochs = MinMaxScaler(feature_range=(0,200))
@@ -143,13 +134,35 @@ def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3,
     epochs_eval_1_norm=scaler_epochs.fit_transform(epochs_eval_1.reshape(-1,1)).flatten()
     mse_eval_values_1_norm=scaler_mse.fit_transform(mse_eval_values_1.reshape(-1,1)).flatten()
 
-    epochs_eval_1_16_norm=scaler_epochs.fit_transform(epochs_eval_1_16.reshape(-1,1)).flatten()
-    mse_eval_values_1_16_norm=scaler_mse.fit_transform(mse_eval_values_1_16.reshape(-1,1)).flatten()
+    epochs_eval_2_norm=scaler_epochs.fit_transform(epochs_eval_2.reshape(-1,1)).flatten()
+    mse_eval_values_2_norm=scaler_mse.fit_transform(mse_eval_values_2.reshape(-1,1)).flatten()
 
-    epochs_eval_2_norm=scaler_epochs.fit_transform(epochs_eval_1.reshape(-1,1)).flatten()
-    mse_eval_values_1_norm=scaler_mse.fit_transform(mse_eval_values_1.reshape(-1,1)).flatten()
+    # setup dataframes for Seaborn
 
-    epochs_eval_1_16_norm=scaler_epochs.fit_transform(epochs_eval_1_16.reshape(-1,1)).flatten()
-    mse_eval_values_1_16_norm=scaler_mse.fit_transform(mse_eval_values_1_16.reshape(-1,1)).flatten()"""
+    #RAT dataframe EGFX
+    data_eval_1 = {
+        'Epochs': epochs_eval_1_norm,
+        'MSE Evaluation': mse_eval_values_1_norm,
+    }
+    df_eval_1 = pd.DataFrame(data_eval_1)
+
+    #RAT dataframe Fragments
+    data_eval_2 = {
+        'Epochs':epochs_eval_2_norm,
+        'MSE Evaluation': mse_eval_values_2_norm
+    }
+    df_eval_2 = pd.DataFrame(data_eval_2)
+
+    plt.figure(figsize=(20,12))
+    sns.set_theme(style="whitegrid", palette="coolwarm")
+    sns.lineplot(data=df_eval_1, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT EGFX', marker='o')
+    sns.lineplot(data=df_eval_2, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT Fragments', marker='o')
+
+    plt.xlabel('Epochs')
+    plt.ylabel('MSE')
+    plt.title('MSE History')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
