@@ -1,6 +1,5 @@
 # Forger Neural Effect on Bela
 ## Selected Topics in Music and Acoustic Enginering
-SELECTED TOPICS IN MUSIC AND ACOUSTIC ENGINEERING
 Repository for Selected Topics in Music and Acoustic Enginering 2022/23 Course at Politecnico di Milano
 
 ## Abstract
@@ -86,3 +85,17 @@ scp resources/model/TubeScreamerNeck_egfx_bl16lstm64.json root@192.168.6.2:~/Bel
 - Run the executable:
 `./bela_executable`
 
+
+## Contributions
+| | Colombo | Superbo | 
+|:---------------------------------- |:-----------------:|:-----------------:|
+| Dataset Pipelines | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)| [![RED](https://placehold.it/15/f03c15/f03c15)](#)|
+| Models | [![GREEN](https://placehold.it/15/ffdd00/ffdd00)](#) | [![RED](https://placehold.it/15/f03c15/f03c15)](#)|
+| Training code | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#) | [![RED](https://placehold.it/15/f03c15/f03c15)](#)|
+| Model training | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#) | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)|
+| Performance evaluation  | [![YELLOW](https://placehold.it/15/ffdd00/ffdd00)](#)| [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)|
+| Cross-compilation | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#) | [![RED](https://placehold.it/15/f03c15/f03c15)](#)|
+| Inference code | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#) | [![YELLOW](https://placehold.it/15/ffdd00/ffdd00)](#)|
+| GUI | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)| [![RED](https://placehold.it/15/f03c15/f03c15)](#)|
+| Report | [![Yellow](https://placehold.it/15/ffdd00/ffdd00)](#) | [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)|
+| Presentation | [![YELLOW](https://placehold.it/15/ffdd00/ffdd00)](#)| [![GREEN](https://placehold.it/15/44bb44/44bb44)](#)|
