@@ -1,54 +1,73 @@
-import numpy as np
 import os
-from torch.utils.data import TensorDataset
+import numpy as np
+import soundfile as sf
 import torch
+from torch.utils.data import TensorDataset
 
+import config
 from training.modules.utils.file_system import get_source_target_file_paths, convert_audio_files_to_arrays
 from training.modules.utils.array_utils import zeropad_tuple_to_longest_item
 from training.modules.data.dataset_generator import DatasetGenerator
 
 
 class EGFxDatasetGenerator(DatasetGenerator):
-
     def __init__(self,
-                 input_audio_folder,
-                 output_audio_folder,
+                 input_audio_folders: list,
+                 output_audio_folders: list,
                  samplerate=44100,
                  block_size=1,
                  normalize_amp=False):
         super().__init__()
-        self.input_audio_folder = input_audio_folder
-        self.output_audio_folder = output_audio_folder
+        assert len(input_audio_folders) == len(output_audio_folders), \
+            'number of input_audio_folders does not match number of output_audio_folders'
+
+        self.input_audio_folders = input_audio_folders
+        self.output_audio_folders = output_audio_folders
         self.samplerate = samplerate
         self.block_size = block_size
         self.normalize_amp = normalize_amp
 
-    def generate_dataset(self):  # , pre_emphasis_filter=True):
+    def generate_dataset(self, normalize_amp=None, samplerate=None, block_size=None):
         """
         Generates the complete dataset from which
         training, validation and testing data will be retrieved
         returns a TensorDataset object suitable for use with Torches dataloade
         """
-        assert os.path.exists(self.input_audio_folder), "Input audio folder not found " + self.input_audio_folder
-        assert os.path.exists(self.output_audio_folder), "Output audio folder not found " + self.output_audio_folder
-        # get audio files in the input folder
-        input_file_paths, output_file_paths = get_source_target_file_paths(self.input_audio_folder, self.output_audio_folder,
-                                                                           ".wav")
 
-        print('input_file_paths:\n', input_file_paths)
-        print('out_file_paths:\n', output_file_paths)
-        assert len(input_file_paths) > 0, "get_source_target_file_paths yielded zero inputs files"
-        assert len(output_file_paths) > 0, "get_source_target_file_paths yielded zero outputs files"
+        self.normalize_amp = normalize_amp or self.normalize_amp
+        self.samplerate = samplerate or self.samplerate
+        self.block_size = block_size or self.block_size
 
-        # get wav files as np arrays
-        input_arrays = convert_audio_files_to_arrays(
-            audio_file_paths=input_file_paths,
-            samplerate=self.samplerate
-        )
-        target_arrays = convert_audio_files_to_arrays(
-            audio_file_paths=output_file_paths,
-            samplerate=self.samplerate
-        )
+        input_arrays = []
+        target_arrays = []
+        for (input_folder, output_folder) in zip(self.input_audio_folders, self.output_audio_folders):
+            assert os.path.exists(input_folder), "Input audio folder not found " + self.input_audio_folders
+            assert os.path.exists(output_folder), "Output audio folder not found " + self.output_audio_folders
+            print('\ninput_folder:\n', input_folder)
+            print('output_folder:\n', output_folder)
+
+            # get audio files in the input folder
+            input_file_paths, output_file_paths = get_source_target_file_paths(
+                input_folder,
+                output_folder,
+                ".wav"
+            )
+
+            assert len(input_file_paths) > 0, "get_source_target_file_paths yielded zero inputs files"
+            assert len(output_file_paths) > 0, "get_source_target_file_paths yielded zero outputs files"
+            _, sample_rate = sf.read(input_file_paths[0], dtype='float32')
+            if sample_rate != config.SAMPLE_RATE:
+                print("load_wav_file warning: sample rate wrong, resampling from ", sample_rate, "to", config.SAMPLE_RATE)
+
+            # get wav files as np arrays
+            input_arrays += convert_audio_files_to_arrays(
+                audio_file_paths=input_file_paths,
+                samplerate=self.samplerate
+            )
+            target_arrays += convert_audio_files_to_arrays(
+                audio_file_paths=output_file_paths,
+                samplerate=self.samplerate
+            )
 
         # zeropad everything to match longest - obtain arrays of uniform length
         input_arrays, target_arrays = zeropad_tuple_to_longest_item((input_arrays, target_arrays))

@@ -34,8 +34,9 @@ class Trainer:
 
     def train_model(self, dataloader):
         print("About to train")
+        start_epoch = config.START_EPOCH or 0
 
-        for epoch in range(config.MAX_EPOCHS):
+        for epoch in range(start_epoch, config.MAX_EPOCHS):
             self._train_epoch(
                 dataloader=dataloader,
                 epoch=epoch,

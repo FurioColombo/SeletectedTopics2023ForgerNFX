@@ -16,13 +16,12 @@ from training.config import config
 
 
 # used for the writing of example outputs
-run_name = config.DATASET_TARGET_FOLDER_NAME.split('/')[1]
+run_name = config.DATASET_TARGET_FOLDER_NAME[0].split('/')[1]
 date_time = datetime.now().strftime("_%m-%d-%Y_%H-%M")
 
 assert os.path.exists(config.DATASET_FOLDER_PATH), "Audio folder  not found. Looked for " + config.DATASET_FOLDER_PATH
 # used to render example output during training
 assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for " + config.TEST_FILE_PATH
-
 
 # create the logger for tensorboard
 writer = SummaryWriter()
@@ -30,9 +29,11 @@ writer = SummaryWriter()
 print("Loading dataset from folder ", config.DATASET_FOLDER_PATH)
 
 if any(config.DATASET_TYPE.lower() == name for name in ['egfx', 'single_notes']):
+    in_audio_folders = [config.DATASET_FOLDER_PATH + folder_name for folder_name in config.DATASET_INPUT_FOLDER_NAME]
+    out_audio_folders = [config.DATASET_FOLDER_PATH + folder_name for folder_name in config.DATASET_TARGET_FOLDER_NAME]
     dataset_generator = EGFxDatasetGenerator(
-        input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
-        output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+        input_audio_folders=in_audio_folders,
+        output_audio_folders=out_audio_folders,
         block_size=config.NN_IN_BLOCK_SIZE,
         samplerate=config.SAMPLE_RATE,
         normalize_amp=True,

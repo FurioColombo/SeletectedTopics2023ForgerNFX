@@ -59,7 +59,6 @@ def load_wav_file(filename, target_samplerate):
 
     # Resample to 44100 Hz
     if samplerate != target_samplerate:
-        print("load_wav_file warning: sample rate wrong, resampling from ", samplerate, "to", target_samplerate)
         data = librosa.resample(
             data,
             orig_sr=samplerate,

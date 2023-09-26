@@ -14,7 +14,7 @@ def zeropad_tuple_to_longest_item(np_arrays_tuple: tuple, max_length=None):
             # delete eventual zeros at the beginning of the audio file
             np_arrays[idx] = np.trim_zeros(np_array)
 
-        max_len = max(map(len, np_arrays))
+        max_len = max(max_len, max(map(len, np_arrays)))
 
     # zero-padding
     for np_arrays in np_arrays_tuple:

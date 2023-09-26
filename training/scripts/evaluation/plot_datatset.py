@@ -23,8 +23,8 @@ print("Loading dataset from folder ", config.DATASET_FOLDER_PATH)
 
 # if any(config.DATASET_TYPE.lower() == name for name in ['egfx', 'single_notes']):
 dataset_generator_EGFX = EGFxDatasetGenerator(
-    input_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
-    output_audio_folder=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
+    input_audio_folders=config.DATASET_FOLDER_PATH + config.DATASET_INPUT_FOLDER_NAME,
+    output_audio_folders=config.DATASET_FOLDER_PATH + config.DATASET_TARGET_FOLDER_NAME,
     samplerate=config.SAMPLE_RATE,
     normalize_amp=True,
 )
