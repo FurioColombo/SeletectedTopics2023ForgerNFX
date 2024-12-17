@@ -1,4 +1,10 @@
 # Forger Neural Effect on Bela
+
+
+<p align="center">
+  <img src="./assets/forger_pedal_image.png" width="350" title="ForgerNFX graphic interphace">
+</p>
+
 ## Selected Topics in Music and Acoustic Enginering
 Repository for Selected Topics in Music and Acoustic Enginering 2022/23 Course at Politecnico di Milano
 
