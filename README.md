@@ -7,6 +7,8 @@
 
 ## Selected Topics in Music and Acoustic Enginering
 Repository for Selected Topics in Music and Acoustic Enginering 2022/23 Course at Politecnico di Milano
+[Video presentation](https://youtu.be/2kOvCCvieIw)
+[Video Demo](https://youtu.be/tF_DCMwAfec)
 
 ## Abstract
 This project is a real-time neural-effects multi guitar distortion, developed using the RTneural framework on the Bela platform.
