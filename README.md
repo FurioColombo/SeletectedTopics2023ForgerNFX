@@ -4,11 +4,13 @@
 <p align="center">
   <img src="./assets/forger_pedal_image.png" width="350" title="ForgerNFX graphic interphace">
 </p>
+<p align="center">
+  <a href="https://youtu.be/2kOvCCvieIw">Video presentation</a> | <a href="https://youtu.be/tF_DCMwAfec">Video Demo</a>  
+</p>
 
 ## Selected Topics in Music and Acoustic Enginering
-Repository for Selected Topics in Music and Acoustic Enginering 2022/23 Course at Politecnico di Milano
-[Video presentation](https://youtu.be/2kOvCCvieIw)
-[Video Demo](https://youtu.be/tF_DCMwAfec)
+Repository for Selected Topics in Music and Acoustic Enginering 2022/23 Course at Politecnico di Milano.
+
 
 ## Abstract
 This project is a real-time neural-effects multi guitar distortion, developed using the RTneural framework on the Bela platform.
