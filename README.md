@@ -109,5 +109,3 @@ scp resources/model/TubeScreamerNeck_egfx_bl16lstm64.json root@192.168.6.2:~/Bel
 | GUI                      | 🟩              | 🟥              |
 | Report                   | 🟨              | 🟩              |
 | Presentation             | 🟨              | 🟩              |
-|:------------------------- |:---------------:|:---------------:|
-
