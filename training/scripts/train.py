@@ -19,9 +19,9 @@ from training.config import config
 run_name = config.DATASET_TARGET_FOLDER_NAME[0].split('/')[1]
 date_time = datetime.now().strftime("_%m-%d-%Y_%H-%M")
 
-assert os.path.exists(config.DATASET_FOLDER_PATH), "Audio folder  not found. Looked for " + config.DATASET_FOLDER_PATH
+assert os.path.exists(config.DATASET_FOLDER_PATH), "Audio folder  not found. Looked for " + os.path.abspath(config.DATASET_FOLDER_PATH)
 # used to render example output during training
-assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for " + config.TEST_FILE_PATH
+assert os.path.exists(config.TEST_FILE_PATH), "Test file not found. Looked for " + os.path.abspath(config.TEST_FILE_PATH)
 
 # create the logger for tensorboard
 writer = SummaryWriter()
@@ -49,8 +49,14 @@ elif any(config.DATASET_TYPE.lower() == name for name in ['myk', 'fragments']):
 else:
     assert 'ERROR: config dataset name not matching any available option'
 
-print("Generating dataset...", end='')
-dataset = dataset_generator.generate_dataset()
+try:
+    print("Generating dataset...", end='')
+    dataset = dataset_generator.generate_dataset()
+    print("Done")
+except Exception as e:
+    print("Failed to generate dataset:", str(e))
+    raise
+
 print("Done\nSplitting dataset...", end='')
 train_ds, val_ds, test_ds = dataset_generator.get_train_valid_test_datasets()
 
@@ -58,9 +64,9 @@ print("Done\n Looking for GPU power")
 device = training.get_device()
 
 print("Creating data loaders")
-train_dl = DataLoader(train_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
-val_dl = DataLoader(val_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
-test_dl = DataLoader(test_ds, batch_size=config.BATCH_SIZE, shuffle=True, generator=torch.Generator(device=device))
+train_dl = DataLoader(train_ds, batch_size=config.BATCH_SIZE, shuffle=True,  num_workers=4, generator=torch.Generator(device=device))
+val_dl = DataLoader(val_ds, batch_size=config.BATCH_SIZE, shuffle=False,  num_workers=4, generator=torch.Generator(device=device))
+test_dl = DataLoader(test_ds, batch_size=config.BATCH_SIZE, shuffle=False,  num_workers=4, generator=torch.Generator(device=device))
 
 print("Creating model")
 if config.MODEL_NAME.lower() == 'lstm'.lower():

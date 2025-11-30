@@ -4,7 +4,7 @@ import soundfile as sf
 import torch
 from torch.utils.data import TensorDataset
 
-import config
+from training.config import config
 from training.modules.utils.file_system import get_source_target_file_paths, convert_audio_files_to_arrays
 from training.modules.utils.array_utils import zeropad_tuple_to_longest_item
 from training.modules.data.dataset_generator import DatasetGenerator
@@ -87,10 +87,10 @@ class EGFxDatasetGenerator(DatasetGenerator):
             target_arrays /= combine_max
 
         print("generate_dataset: Loaded frames from audio file", len(input_file_paths))
+
         # normal shape for LSTM input: (sequence_length, batch_size, input_size]
         input_tensor = torch.tensor(np.array(input_arrays))
         output_tensor = torch.tensor(np.array(target_arrays))
-
         input_tensor = torch.unsqueeze(input_tensor, dim=-1)
         output_tensor = torch.unsqueeze(output_tensor, dim=-1)
 

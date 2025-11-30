@@ -6,7 +6,7 @@ import numpy as np
 from training.config import config
 from training.modules.models import loss
 from training.modules.training import training
-from training.scripts.evaluation import evaluate
+from training.scripts.evaluation import inference
 
 
 class Trainer:
@@ -75,14 +75,14 @@ class Trainer:
                 optimizer=self.optimiser,
                 curr_loss=self.best_loss
             )
-            evaluate.test_model(
+            inference.test_model(
                 model=self.model,
                 indata=dataloader,
                 out_dir=checkpoint_path,
                 file_name=self.run_name + str(epoch) + "singleNote.wav"
             )
             # if epoch % 10 == 0:  # save an example processed audio file
-            evaluate.run_file_through_model(
+            inference.run_file_through_model(
                 model=self.model,
                 infile=config.TEST_FILE_PATH,
                 out_dir=checkpoint_path,

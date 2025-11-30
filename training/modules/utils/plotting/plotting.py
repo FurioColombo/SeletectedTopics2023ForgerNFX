@@ -42,74 +42,77 @@ def plot_dataset_couple(dataset, dataset_index=0, random_sample=False):
     plt.show()
 
 
-def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3, eval_mse_history_1_16, eval_mse_history_2_16, eval_mse_history_3_16):
+def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3, eval_mse_history_1_16,
+                     eval_mse_history_2_16, eval_mse_history_3_16):
     # setup data
-    epochs_eval_1 = eval_mse_history_1[:,0] #RAT
-    mse_eval_values_1 = eval_mse_history_1[:,1] 
-    epochs_eval_2 = eval_mse_history_2[:,0] #BluesDriver
-    mse_eval_values_2 = eval_mse_history_2[:,1] 
-    epochs_eval_3 = eval_mse_history_3[:,0] #TubeScreamer
-    mse_eval_values_3 = eval_mse_history_3[:,1] 
+    epochs_eval_1 = eval_mse_history_1[:, 0]  # RAT
+    mse_eval_values_1 = eval_mse_history_1[:, 1]
+    epochs_eval_2 = eval_mse_history_2[:, 0]  # BluesDriver
+    mse_eval_values_2 = eval_mse_history_2[:, 1]
+    epochs_eval_3 = eval_mse_history_3[:, 0]  # TubeScreamer
+    mse_eval_values_3 = eval_mse_history_3[:, 1]
 
-    epochs_eval_1_16 = eval_mse_history_1_16[:,0] #RAT bs16
-    mse_eval_values_1_16 = eval_mse_history_1_16[:,1]
-    epochs_eval_2_16 = eval_mse_history_2_16[:,0] #BluesDriver bs16
-    mse_eval_values_2_16 = eval_mse_history_2_16[:,1]
-    epochs_eval_3_16 = eval_mse_history_3_16[:,0] #TubeScreamer bs16
-    mse_eval_values_3_16 = eval_mse_history_3_16[:,1]
-    
+    epochs_eval_1_16 = eval_mse_history_1_16[:, 0]  # RAT bs16
+    mse_eval_values_1_16 = eval_mse_history_1_16[:, 1]
+    epochs_eval_2_16 = eval_mse_history_2_16[:, 0]  # BluesDriver bs16
+    mse_eval_values_2_16 = eval_mse_history_2_16[:, 1]
+    epochs_eval_3_16 = eval_mse_history_3_16[:, 0]  # TubeScreamer bs16
+    mse_eval_values_3_16 = eval_mse_history_3_16[:, 1]
+
     # setup dataframes for Seaborn
 
-    #RAT dataframe
+    # RAT dataframe
     data_eval_1 = {
-    'Epochs': epochs_eval_1,
-    'MSE Evaluation': mse_eval_values_1,
+        'Epochs': epochs_eval_1,
+        'MSE Evaluation': mse_eval_values_1,
     }
     df_eval_1 = pd.DataFrame(data_eval_1)
 
-    #RAT dataframe bs16
+    # RAT dataframe bs16
     data_eval_1_16 = {
-        'Epochs':epochs_eval_1_16,
+        'Epochs': epochs_eval_1_16,
         'MSE Evaluation': mse_eval_values_1_16
     }
     df_eval_1_16 = pd.DataFrame(data_eval_1_16)
 
-    #BluesDriver dataframe
+    # BluesDriver dataframe
     data_eval_2 = {
-    'Epochs': epochs_eval_2,
-    'MSE Evaluation': mse_eval_values_2
+        'Epochs': epochs_eval_2,
+        'MSE Evaluation': mse_eval_values_2
     }
     df_eval_2 = pd.DataFrame(data_eval_2)
 
-    #BluesDriver dataframe bs16
+    # BluesDriver dataframe bs16
     data_eval_2_16 = {
-    'Epochs': epochs_eval_2_16,
-    'MSE Evaluation': mse_eval_values_2_16
+        'Epochs': epochs_eval_2_16,
+        'MSE Evaluation': mse_eval_values_2_16
     }
     df_eval_2_16 = pd.DataFrame(data_eval_2_16)
 
-    #TubeScreamer dataframe
+    # TubeScreamer dataframe
     data_eval_3 = {
-    'Epochs': epochs_eval_3,
-    'MSE Evaluation': mse_eval_values_3
+        'Epochs': epochs_eval_3,
+        'MSE Evaluation': mse_eval_values_3
     }
     df_eval_3 = pd.DataFrame(data_eval_3)
 
-    #TubeScreamer dataframe bs16
+    # TubeScreamer dataframe bs16
     data_eval_3_16 = {
-    'Epochs': epochs_eval_3_16,
-    'MSE Evaluation': mse_eval_values_3_16
+        'Epochs': epochs_eval_3_16,
+        'MSE Evaluation': mse_eval_values_3_16
     }
     df_eval_3_16 = pd.DataFrame(data_eval_3_16)
 
-    plt.figure(figsize=(20,12))
+    plt.figure(figsize=(20, 12))
     sns.set_theme(style="whitegrid", palette="coolwarm")
     sns.lineplot(data=df_eval_1, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT', marker='o')
     sns.lineplot(data=df_eval_1_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation RAT bs 16', marker='o')
     sns.lineplot(data=df_eval_2, x='Epochs', y='MSE Evaluation', label='MSE Evaluation BluesDriver', marker='o')
-    sns.lineplot(data=df_eval_2_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation BluesDriver bs 16', marker='o')
+    sns.lineplot(data=df_eval_2_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation BluesDriver bs 16',
+                 marker='o')
     sns.lineplot(data=df_eval_3, x='Epochs', y='MSE Evaluation', label='MSE Evaluation TubeScreamer', marker='o')
-    sns.lineplot(data=df_eval_3_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation TubeScreamer bs 16', marker='o')
+    sns.lineplot(data=df_eval_3_16, x='Epochs', y='MSE Evaluation', label='MSE Evaluation TubeScreamer bs 16',
+                 marker='o')
 
     plt.xlabel('Epochs')
     plt.ylabel('MSE')
@@ -122,9 +125,9 @@ def plot_mse_history(eval_mse_history_1, eval_mse_history_2, eval_mse_history_3,
 def plot_mse_datasets(eval_mse_history_1, eval_mse_history_2):
     # setup data
     epochs_eval_1 = eval_mse_history_1[:,0] #RAT EGFX dataset
-    mse_eval_values_1 = eval_mse_history_1[:,1] 
+    mse_eval_values_1 = eval_mse_history_1[:,1]
     epochs_eval_2 = eval_mse_history_2[:,0] #RAT Fragments dataset
-    mse_eval_values_2 = eval_mse_history_2[:,1] 
+    mse_eval_values_2 = eval_mse_history_2[:,1]
 
     # normalization with MinMax
     scaler_epochs = MinMaxScaler(feature_range=(0,200))

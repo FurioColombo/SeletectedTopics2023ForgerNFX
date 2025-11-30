@@ -86,3 +86,17 @@ def convert_audio_files_to_arrays(audio_file_paths, samplerate, zeropad=False):
         array = np.ravel(array)
         audio_arrays.append(array)
     return audio_arrays
+
+'''
+Example use:
+
+import os
+print(find_vcs_root(os.path.dirname(__file__)))
+'''
+def find_vcs_root(test, dirs=(".git",), default=None):
+    prev, test = None, os.path.abspath(test)
+    while prev != test:
+        if any(os.path.isdir(os.path.join(test, d)) for d in dirs):
+            return test
+        prev, test = test, os.path.abspath(os.path.join(test, os.pardir))
+    return default

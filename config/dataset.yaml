@@ -1,0 +1,6 @@
+slug: "marcofuriocolombo/egfx-dataset"
+title: "EGFx Dataset"
+local_root: "training/resources/datasets/EGFxDataset"
+expected_folders:
+  - "Clean"
+  - "TubeScreamer"

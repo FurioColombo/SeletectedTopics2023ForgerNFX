@@ -9,6 +9,8 @@ __pycache__/
 
 dist/
 build/
+resou\
+/
 .idea/
 
 config/config.ini
@@ -20,4 +22,13 @@ config/config.ini
 *.ogg
 *.flac
 *.local
-config.py
+kaggle.json
+kaggle_build/
+runs/
+outputs/
+training/resources/datasets/
+*.mp4
+*.pt
+__pycache__/
+.pytest_cache/
+.vscode/

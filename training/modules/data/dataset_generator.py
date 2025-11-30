@@ -15,7 +15,11 @@ class DatasetGenerator(ABC):
     def generate_dataset(self):
         pass
 
-    def get_train_valid_test_datasets(self, splits=None):
+    def get_train_valid_test_datasets(self, splits=None, dataset=None):
+        if dataset is not None:
+            self.dataset = dataset
+        assert self.dataset is not None, "No dataset to split"  # make sure we have a dataset to split
+
         if splits is None:
             splits = [0.8, 0.1, 0.1]
         assert type(self.dataset) == TensorDataset, "dataset should be a TensorDataset but it is " + str(type(self.dataset))
@@ -48,7 +52,7 @@ class DatasetGenerator(ABC):
         train_dataset, val_dataset, test_dataset = random_split(self.dataset, [train_size, val_size, test_size])
         return train_dataset, val_dataset, test_dataset
 
-    # adjust block size for the model requirements
+    # adjust block size for the model requirements - ensures input and out tensors are the same size
     def _reshape_block_size(self, input_tensor, output_tensor):
         dataset_shape = (input_tensor.shape[0], int(input_tensor.shape[1] / self.block_size), self.block_size)
         input_tensor = input_tensor[:, :-(input_tensor.shape[1] % self.block_size) or None, :]
