@@ -21,6 +21,7 @@ from src.models.lstm import LSTMModel
 from src.models.conv import ConvModel
 from src.training.trainer import Trainer
 from src.training.loss import MSELoss, ESRLoss, CombinedLoss
+from src.monitoring.logger import create_kaggle_logger
 
 def main():
     parser = argparse.ArgumentParser(description="Train a guitar audio distortion model")
@@ -127,6 +128,13 @@ def main():
     # 5. Run Training
     print("Starting training...")
     
+    # Initialize Logger
+    logger = create_kaggle_logger(
+        project="forger-nfx",
+        run_name=f"{args.target_folder}_{config.model.name}",
+        config=config.model_dump()
+    )
+
     metrics = {
         "history": [],
         "final_loss": None,
@@ -134,11 +142,20 @@ def main():
     }
     
     def checkpoint_callback(epoch, train_loss, val_loss):
+        # Log to W&B / Local
+        logger.log_metrics({
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "epoch": epoch + 1
+        }, step=epoch + 1)
+        
+        # Keep metrics for backward compatibility with kaggle_train.py
         metrics["history"].append({
             "epoch": epoch + 1,
             "train_loss": train_loss,
             "val_loss": val_loss
         })
+
         
         if (epoch + 1) % 10 == 0:
             run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")

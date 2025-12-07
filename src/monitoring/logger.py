@@ -233,14 +233,19 @@ def create_kaggle_logger(
     Returns:
         Configured MonitoringLogger
     """
-    # On Kaggle, secrets are in /kaggle/input/
-    kaggle_secret_path = Path("/kaggle/input/wandb-api-key/wandb_api_key.txt")
-    
-    if kaggle_secret_path.exists():
-        with open(kaggle_secret_path) as f:
-            api_key = f.read().strip()
-        os.environ['WANDB_API_KEY'] = api_key
-        print("✅ Loaded wandb API key from Kaggle secrets")
+    # On Kaggle, secrets are accessed via UserSecretsClient
+    try:
+        from kaggle_secrets import UserSecretsClient
+        user_secrets = UserSecretsClient()
+        api_key = user_secrets.get_secret("wandb_api_key")
+        if api_key:
+            os.environ['WANDB_API_KEY'] = api_key
+            print("✅ Loaded wandb API key from Kaggle secrets")
+    except ImportError:
+        # Not on Kaggle or library missing
+        pass
+    except Exception as e:
+        print(f"⚠️  Could not load wandb secret: {e}")
     
     return MonitoringLogger(
         project=project,
