@@ -111,7 +111,7 @@ class NotebookManager:
                     f"--metrics_out {config.get('metrics_out', '/kaggle/working/metrics.json')}\n"
                 ]
             }
-        ]
+        ])
         
         notebook = {
             "cells": cells,
