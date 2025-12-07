@@ -67,7 +67,7 @@ def main():
         try:
             # Call kaggle CLI directly without capturing output so it streams to console
             result = subprocess.run(
-                ["kaggle", "kernels", "output", notebook_slug, "-p", output_dir]
+                ["kaggle", "kernels", "output", notebook_slug, "-p", output_dir, "--force"]
             )
             if result.returncode == 0:
                 print("\n✓ Download completed successfully")
