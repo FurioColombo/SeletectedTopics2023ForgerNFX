@@ -57,12 +57,13 @@ class MonitoringLogger:
                     self.wandb_available = True
                     print(f"✅ Wandb initialized: {wandb.run.url}")
                 else:
-                    # Try anonymous mode for quick start
+                    # Use anonymous="must" to force anonymous mode without interactive prompts
+                    # This prevents blocking execution on Kaggle
                     self.run = wandb.init(
                         project=project,
                         name=run_name,
                         config=config or {},
-                        anonymous="allow",
+                        anonymous="must",
                         reinit=True
                     )
                     self.wandb_available = True
@@ -270,6 +271,8 @@ def create_kaggle_logger(
         print("   3. Add a new secret with Label: 'wandb_api_key' and Value: <your-api-key>")
         print("   4. Ensure the checkbox 'Attached' is checked")
         print("   Running in offline/local mode for now.")
+        # Enable W&B to allow Anonymous Mode fallback (handled in MonitoringLogger)
+        use_wandb_flag = True
     
     return MonitoringLogger(
         project=project,
