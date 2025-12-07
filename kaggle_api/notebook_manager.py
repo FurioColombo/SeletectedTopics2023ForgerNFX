@@ -46,7 +46,33 @@ class NotebookManager:
         
         repo_branch = config.get('repo_branch', 'master')
         
-        cells = [
+        # Load W&B Key from local credentials for injection (Bypasses flaky Kaggle Secrets)
+        wandb_key = None
+        creds_path = Path("credentials/wandb.json")
+        if creds_path.exists():
+            try:
+                with open(creds_path, 'r') as f:
+                    wandb_key = json.load(f).get("api_key")
+            except Exception as e:
+                print(f"Warning: Could not read wandb.json: {e}")
+
+        cells = []
+        
+        # Inject API Key cell if available
+        if wandb_key:
+            cells.append({
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "import os\n",
+                    f"os.environ['WANDB_API_KEY'] = '{wandb_key}'\n",
+                    "print('✅ Injected W&B API Key from build environment')\n"
+                ]
+            })
+
+        cells.extend([
             {
                 "cell_type": "code",
                 "execution_count": None,
