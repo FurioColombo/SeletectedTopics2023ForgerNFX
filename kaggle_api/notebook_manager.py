@@ -48,11 +48,14 @@ class NotebookManager:
         
         # Load W&B Key from local credentials for injection (Bypasses flaky Kaggle Secrets)
         wandb_key = None
+        wandb_entity = None
         creds_path = Path("credentials/wandb.json")
         if creds_path.exists():
             try:
                 with open(creds_path, 'r') as f:
-                    wandb_key = json.load(f).get("api_key")
+                    creds = json.load(f)
+                    wandb_key = creds.get("api_key")
+                    wandb_entity = creds.get("entity")
             except Exception as e:
                 print(f"Warning: Could not read wandb.json: {e}")
 
@@ -60,16 +63,19 @@ class NotebookManager:
         
         # Inject API Key cell if available
         if wandb_key:
+            env_vars = [ "import os\n" ]
+            env_vars.append(f"os.environ['WANDB_API_KEY'] = '{wandb_key}'\n")
+            if wandb_entity:
+                env_vars.append(f"os.environ['WANDB_ENTITY'] = '{wandb_entity}'\n")
+            
+            env_vars.append("print('✅ Injected W&B Credentials from build environment')\n")
+            
             cells.append({
                 "cell_type": "code",
                 "execution_count": None,
                 "metadata": {},
                 "outputs": [],
-                "source": [
-                    "import os\n",
-                    f"os.environ['WANDB_API_KEY'] = '{wandb_key}'\n",
-                    "print('✅ Injected W&B API Key from build environment')\n"
-                ]
+                "source": env_vars
             })
 
         cells.extend([
