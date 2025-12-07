@@ -1,8 +1,8 @@
 import pytest
 import torch
-from project.models.lstm import LSTMModel
-from project.models.conv import ConvModel
-from project.config.config import ModelConfig
+from src.models.lstm import LSTMModel
+from src.models.conv import ConvModel
+from src.config.config import ModelConfig
 
 def test_lstm_forward():
     config = ModelConfig(name="lstm", hidden_size=16)

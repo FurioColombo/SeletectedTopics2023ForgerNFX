@@ -34,18 +34,33 @@ class DatasetManager:
         print("Dataset validation passed.")
         return config
 
-    def push_dataset(self):
-        """Uploads or updates the dataset on Kaggle."""
+    def push_dataset(self, force: bool = False):
+        """
+        Uploads or updates the dataset on Kaggle.
+        
+        Args:
+            force: If True, always upload even if dataset exists
+        """
         config = self.validate_dataset()
         slug = config['slug']
         local_root = Path(config.get('local_root', LOCAL_DATA_ROOT))
         
         # Check if dataset exists
         try:
-            self.api.dataset_status(slug)
+            dataset_info = self.api.dataset_status(slug)
             exists = True
+            print(f"✅ Dataset '{slug}' already exists on Kaggle")
+            
+            if not force:
+                print("\n💡 Dataset already uploaded. Skipping upload to save time.")
+                print("   Use --force-dataset to force re-upload if needed.")
+                return
+            else:
+                print("   Force flag set - will update dataset...")
+                
         except Exception:
             exists = False
+            print(f"📦 Dataset '{slug}' not found on Kaggle - will create it")
             
         # Prepare metadata
         meta_file = local_root / "dataset-metadata.json"

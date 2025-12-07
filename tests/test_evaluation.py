@@ -1,11 +1,11 @@
 import pytest
 import torch
 import os
-from project.evaluation.metrics import calculate_esr, calculate_mse
-from project.evaluation.inference import run_inference
-from project.models.lstm import LSTMModel
-from project.config.config import ModelConfig
-from project.utils.io import save_audio
+from src.evaluation.metrics import calculate_esr, calculate_mse
+from src.evaluation.inference import run_inference
+from src.models.lstm import LSTMModel
+from src.config.config import ModelConfig
+from src.utils.io import save_audio
 
 def test_metrics():
     pred = torch.ones(1, 100)

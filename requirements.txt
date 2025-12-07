@@ -6,3 +6,11 @@ pydantic
 pyyaml
 pytest
 kaggle
+tqdm
+
+# Evaluation & Visualization
+plotly>=5.0.0
+kaleido>=0.2.1
+
+# Live Monitoring (optional, for advanced users)
+wandb>=0.16.0

@@ -9,26 +9,28 @@ __pycache__/
 
 dist/
 build/
-resou\
-/
+resources/
+checkpoints/
+datasets/
+runs/
+kaggle_build/
+outputs/
+.venv/
 .idea/
 
-config/config.ini
 
 *.xml
-*.json
 *.wav
 *.mp3
 *.ogg
 *.flac
 *.local
-kaggle.json
-kaggle_build/
-runs/
-outputs/
-training/resources/datasets/
 *.mp4
 *.pt
-__pycache__/
-.pytest_cache/
 .vscode/
+
+# Credentials - keep these private
+credentials/
+
+# Generated files
+config.py

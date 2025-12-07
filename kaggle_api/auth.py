@@ -27,6 +27,10 @@ def authenticate():
     # Check local config in home dir
     kaggle_config_path = Path.home() / ".kaggle" / "kaggle.json"
     if kaggle_config_path.exists():
+        with open(kaggle_config_path, 'r') as f:
+            config = json.load(f)
+            os.environ["KAGGLE_USERNAME"] = config["username"]
+            os.environ["KAGGLE_KEY"] = config["key"]
         print(f"Authenticated via {kaggle_config_path}")
         return
 

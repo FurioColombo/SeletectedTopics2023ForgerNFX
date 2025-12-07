@@ -1,8 +1,8 @@
 import pytest
 import torch
-from project.data.dataset import GuitarDataset
-from project.data.loader import create_dataloaders
-from project.config.config import ProjectConfig
+from src.data.dataset import GuitarDataset
+from src.data.loader import create_dataloaders
+from src.config.config import ProjectConfig
 
 def test_dataset_shape():
     # Create dummy audio data: 10 seconds at 44.1kHz

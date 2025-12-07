@@ -2,13 +2,14 @@ import argparse
 import torch
 import os
 from pathlib import Path
-from project.config.config import ProjectConfig
-from project.data.egfx import EGFxDataset
-from project.data.loader import create_dataloaders
-from project.models.lstm import LSTMModel
-from project.models.conv import ConvModel
-from project.training.trainer import Trainer
-from project.training.loss import MSELoss, ESRLoss, CombinedLoss
+from src.config.config import ProjectConfig
+from src.config.paths import paths
+from src.data.egfx import EGFxDataset
+from src.data.loader import create_dataloaders
+from src.models.lstm import LSTMModel
+from src.models.conv import ConvModel
+from src.training.trainer import Trainer
+from src.training.loss import MSELoss, ESRLoss, CombinedLoss
 
 def main():
     parser = argparse.ArgumentParser(description="Train a guitar audio distortion model")
@@ -16,10 +17,10 @@ def main():
     parser.add_argument("--input_folder", type=str, default="Clean", help="Name of input folder (e.g. Clean)")
     parser.add_argument("--target_folder", type=str, required=True, help="Name of target folder (e.g. TubeScreamer)")
     parser.add_argument("--model", type=str, default="lstm", choices=["lstm", "conv"], help="Model type")
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--output_dir", type=str, default="runs", help="Output directory for checkpoints")
-    parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=0.00001, help="Learning rate")
     parser.add_argument("--metrics_out", type=str, default=None, help="Path to save metrics JSON")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
     args = parser.parse_args()
@@ -129,16 +130,20 @@ def main():
         })
         
         if (epoch + 1) % 10 == 0:
-            ckpt_path = os.path.join(config.output_dir, f"{args.target_folder}_{config.model.name}", f"checkpoint_epoch_{epoch+1}.pt")
-            from project.utils.checkpoint import save_checkpoint
+            run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
+            run_dir.mkdir(parents=True, exist_ok=True)
+            ckpt_path = str(run_dir / f"checkpoint_epoch_{epoch+1}.pt")
+            from src.utils.checkpoint import save_checkpoint
             save_checkpoint(model, optimizer, epoch, val_loss, ckpt_path)
             print(f"Saved checkpoint to {ckpt_path}")
 
     trainer.train(callbacks=[checkpoint_callback])
     
     # Save final model
-    final_path = os.path.join(config.output_dir, f"{args.target_folder}_{config.model.name}", "final_model.pt")
-    from project.utils.checkpoint import save_checkpoint
+    run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    final_path = str(run_dir / "final_model.pt")
+    from src.utils.checkpoint import save_checkpoint
     save_checkpoint(model, optimizer, config.training.epochs, 0.0, final_path)
     print(f"Training complete! Saved to {final_path}")
     

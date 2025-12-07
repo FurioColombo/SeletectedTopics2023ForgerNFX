@@ -1,8 +1,8 @@
 import pytest
 import torch
 import os
-from project.data.egfx import EGFxDataset
-from project.utils.io import save_audio
+from src.data.egfx import EGFxDataset
+from src.utils.io import save_audio
 
 def test_egfx_dataset(tmp_path):
     # Create dummy directory structure

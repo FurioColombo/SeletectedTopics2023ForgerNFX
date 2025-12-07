@@ -1,10 +1,10 @@
 import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from project.training.trainer import Trainer
-from project.training.loss import MSELoss
-from project.models.lstm import LSTMModel
-from project.config.config import TrainingConfig, ModelConfig
+from src.training.trainer import Trainer
+from src.training.loss import MSELoss
+from src.models.lstm import LSTMModel
+from src.config.config import TrainingConfig, ModelConfig
 
 def test_multi_epoch_training():
     # Setup

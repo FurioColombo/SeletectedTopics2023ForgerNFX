@@ -79,7 +79,10 @@ class NotebookManager:
                 "outputs": [],
                 "source": [
                     "# Run Training\n",
-                    "!python train.py --config config/kaggle_train.yaml\n"
+                    f"!python train.py --dataset_root {config.get('data_root', '/kaggle/input/egfx-dataset')} "
+                    f"--target_folder TubeScreamer --epochs {config.get('epochs', 50)} "
+                    f"--batch_size {config.get('batch_size', 16)} "
+                    f"--metrics_out {config.get('metrics_out', '/kaggle/working/metrics.json')}\n"
                 ]
             }
         ]

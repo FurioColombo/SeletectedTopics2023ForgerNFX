@@ -1,10 +1,10 @@
 import pytest
 import torch
 import os
-from project.utils.io import save_audio, load_audio
-from project.utils.checkpoint import save_checkpoint, load_checkpoint, save_for_rtneural
-from project.models.lstm import LSTMModel
-from project.config.config import ModelConfig
+from src.utils.io import save_audio, load_audio
+from src.utils.checkpoint import save_checkpoint, load_checkpoint, save_for_rtneural
+from src.models.lstm import LSTMModel
+from src.config.config import ModelConfig
 
 def test_audio_io(tmp_path):
     # Create dummy audio

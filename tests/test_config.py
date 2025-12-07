@@ -1,5 +1,5 @@
 import pytest
-from project.config.config import load_config, ProjectConfig
+from src.config.config import load_config, ProjectConfig
 
 def test_default_config():
     config = load_config()
