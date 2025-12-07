@@ -2,6 +2,10 @@ import argparse
 import torch
 import os
 from pathlib import Path
+import sys
+
+# Ensure src module is importable
+sys.path.append(str(Path(__file__).parent))
 from src.config.config import ProjectConfig
 from src.config.paths import paths
 from src.data.egfx import EGFxDataset
