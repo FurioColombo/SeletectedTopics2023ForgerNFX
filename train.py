@@ -5,7 +5,14 @@ from pathlib import Path
 import sys
 
 # Ensure src module is importable
-sys.path.append(str(Path(__file__).parent))
+repo_root = Path(__file__).parent
+sys.path.append(str(repo_root))
+
+print(f"DEBUG: sys.path: {sys.path}")
+print(f"DEBUG: repo_root: {repo_root}")
+print(f"DEBUG: repo_root exists: {repo_root.exists()}")
+print(f"DEBUG: src exists in repo_root: {(repo_root / 'src').exists()}")
+
 from src.config.config import ProjectConfig
 from src.config.paths import paths
 from src.data.egfx import EGFxDataset
