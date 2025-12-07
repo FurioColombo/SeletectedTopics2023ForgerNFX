@@ -234,18 +234,28 @@ def create_kaggle_logger(
         Configured MonitoringLogger
     """
     # On Kaggle, secrets are accessed via UserSecretsClient
+    print("🔄 Initializing Kaggle Logger...")
     try:
         from kaggle_secrets import UserSecretsClient
         user_secrets = UserSecretsClient()
         api_key = user_secrets.get_secret("wandb_api_key")
         if api_key:
             os.environ['WANDB_API_KEY'] = api_key
-            print("✅ Loaded wandb API key from Kaggle secrets")
+            print("✅ Loaded W&B API key from Kaggle Secrets")
+        else:
+            print("⚠️  Secret 'wandb_api_key' found but is empty.")
     except ImportError:
         # Not on Kaggle or library missing
+        print("ℹ️  Not running on Kaggle (or kaggle_secrets missing). Using local/env credentials if available.")
         pass
     except Exception as e:
-        print(f"⚠️  Could not load wandb secret: {e}")
+        print(f"⚠️  Could not load W&B secret: {e}")
+        print("💡 To enable W&B logging on Kaggle:")
+        print("   1. Open the Notebook in the Editor")
+        print("   2. Go to 'Add-ons' -> 'Secrets'")
+        print("   3. Add a new secret with Label: 'wandb_api_key' and Value: <your-api-key>")
+        print("   4. Ensure the checkbox 'Attached' is checked")
+        print("   Running in offline/local mode for now.")
     
     return MonitoringLogger(
         project=project,
