@@ -235,19 +235,25 @@ def create_kaggle_logger(
     """
     # On Kaggle, secrets are accessed via UserSecretsClient
     print("🔄 Initializing Kaggle Logger...")
+    use_wandb_flag = False
+    
     try:
         from kaggle_secrets import UserSecretsClient
         user_secrets = UserSecretsClient()
         api_key = user_secrets.get_secret("wandb_api_key")
+
         if api_key:
             os.environ['WANDB_API_KEY'] = api_key
             print("✅ Loaded W&B API key from Kaggle Secrets")
+            use_wandb_flag = True
         else:
             print("⚠️  Secret 'wandb_api_key' found but is empty.")
     except ImportError:
         # Not on Kaggle or library missing
         print("ℹ️  Not running on Kaggle (or kaggle_secrets missing). Using local/env credentials if available.")
-        pass
+        # If local, checking env var or netrc is handled by MonitoringLogger, so we can try True
+        if 'WANDB_API_KEY' in os.environ or os.path.exists(Path.home() / '.netrc'):
+             use_wandb_flag = True
     except Exception as e:
         print(f"⚠️  Could not load W&B secret: {e}")
         print("💡 To enable W&B logging on Kaggle:")
@@ -261,5 +267,5 @@ def create_kaggle_logger(
         project=project,
         run_name=run_name,
         config=config,
-        use_wandb=True
+        use_wandb=use_wandb_flag
     )
