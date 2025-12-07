@@ -78,6 +78,30 @@ def main():
             print(f"\n✗ Download error: {e}")
             sys.exit(1)
         
+        # Check for W&B URL
+        wandb_url_file = Path(output_dir) / "wandb_url.txt"
+        if wandb_url_file.exists():
+            with open(wandb_url_file, 'r') as f:
+                url = f.read().strip()
+            print(f"\n🔥 W&B DASHBOARD: {url}")
+        else:
+             # Fallback: check logs
+            log_path = Path(output_dir) / "forger-nfx-training.log"
+            if log_path.exists():
+                try:
+                    # Using latin-1 to avoid encoding issues with progress bars
+                    with open(log_path, 'r', encoding='latin-1') as f:
+                        log_content = f.read()
+                        if "metrics.json" not in log_content: # Just a check to ensure we read something
+                            pass 
+                        # Simple search for wandb url
+                        import re
+                        match = re.search(r'https://wandb.ai/\S+', log_content)
+                        if match:
+                             print(f"\n🔥 W&B DASHBOARD (from logs): {match.group(0)}")
+                except:
+                    pass
+
         metrics_path = Path(output_dir) / "metrics.json"
         if metrics_path.exists():
             with open(metrics_path, 'r', encoding='utf-8') as f:

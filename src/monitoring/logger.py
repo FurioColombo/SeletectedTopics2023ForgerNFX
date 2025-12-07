@@ -90,6 +90,14 @@ class MonitoringLogger:
                 json.dump(config, f, indent=2)
         
         print(f"📁 Local logs: {self.log_dir}")
+        
+        # Save W&B URL to file for easy retrieval
+        if self.wandb_available and self.run:
+            url_file = self.log_dir / "wandb_url.txt"
+            with open(url_file, 'w') as f:
+                f.write(self.run.url)
+            print(f"🔗 W&B URL saved to: {url_file}")
+
     
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None):
         """
