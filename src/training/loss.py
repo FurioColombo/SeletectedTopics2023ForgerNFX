@@ -37,3 +37,56 @@ class CombinedLoss(AudioLoss):
         for loss_fn, weight in self.losses.items():
             total_loss += weight * loss_fn(pred, target)
         return total_loss
+
+class MultiScaleSpectralLoss(AudioLoss):
+    """
+    Multi-Scale Spectral Loss.
+    Computes L1 distance between magnitude spectrograms at multiple resolutions.
+    """
+    def __init__(self, fft_sizes=(2048, 1024, 512, 256, 128, 64)):
+        super().__init__()
+        self.fft_sizes = fft_sizes
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        total_loss = 0.0
+        
+        # Ensure we are working with correct shapes, sometimes (batch, channels, time) needs reshaping
+        # metrics.py logic: pred.reshape(-1, pred.shape[-1]).squeeze()
+        # simplified here assuming standard (B, C, T) or (B, T)
+        
+        p = pred.reshape(-1, pred.shape[-1])
+        t = target.reshape(-1, target.shape[-1])
+
+        for n_fft in self.fft_sizes:
+            hop_length = n_fft // 4
+            window = torch.hann_window(n_fft, device=pred.device)
+            
+            p_stft = torch.stft(
+                p,
+                n_fft=n_fft,
+                hop_length=hop_length,
+                window=window,
+                return_complex=True
+            )
+            t_stft = torch.stft(
+                t,
+                n_fft=n_fft,
+                hop_length=hop_length,
+                window=window,
+                return_complex=True
+            )
+            
+            p_mag = torch.abs(p_stft)
+            t_mag = torch.abs(t_stft)
+            
+            # L1 Loss on Magnitude
+            loss = torch.mean(torch.abs(p_mag - t_mag))
+            
+            # Optionally Log-Magnitude loss can be added here
+            # p_log = torch.log(p_mag + 1e-7)
+            # t_log = torch.log(t_mag + 1e-7)
+            # loss += torch.mean(torch.abs(p_log - t_log)) 
+            
+            total_loss += loss
+            
+        return total_loss / len(self.fft_sizes)

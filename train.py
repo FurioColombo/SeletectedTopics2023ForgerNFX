@@ -103,11 +103,19 @@ def main():
     model = model.to(device)
 
     # 4. Setup Training
+    # 4. Setup Training
     # Loss: Combination of MSE and ESR
+    from src.training.loss import MSELoss, ESRLoss, CombinedLoss, MultiScaleSpectralLoss
+    
     loss_fn = CombinedLoss({
         MSELoss(): 1.0,
         ESRLoss(): 0.5
     })
+    
+    # Secondary validation metrics
+    validation_loss_fns = {
+        "spectral_loss": MultiScaleSpectralLoss()
+    }
     
     optimizer = torch.optim.Adam(model.parameters(), lr=config.training.learning_rate)
     
@@ -118,7 +126,8 @@ def main():
         config=config.training,
         loss_fn=loss_fn,
         optimizer=optimizer,
-        device=device
+        device=device,
+        validation_loss_fns=validation_loss_fns
     )
 
     # 5. Run Training
@@ -134,44 +143,153 @@ def main():
     metrics = {
         "history": [],
         "final_loss": None,
+        "best_val_loss": float('inf'),
         "config": config.model_dump()
     }
     
-    def checkpoint_callback(epoch, train_loss, val_loss):
+    run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    
+    def checkpoint_callback(epoch, train_loss, val_loss, val_metrics=None):
         # Log to W&B / Local
-        logger.log_metrics({
+        log_dict = {
             "train_loss": train_loss,
             "val_loss": val_loss,
             "epoch": epoch + 1
-        }, step=epoch + 1)
+        }
+        if val_metrics:
+            for k, v in val_metrics.items():
+                log_dict[f"val/{k}"] = v
+        
+        logger.log_metrics(log_dict, step=epoch + 1)
         
         # Keep metrics for backward compatibility with kaggle_train.py
         metrics["history"].append({
             "epoch": epoch + 1,
             "train_loss": train_loss,
-            "val_loss": val_loss
+            "val_loss": val_loss,
+            "extra": val_metrics
         })
 
+        from src.utils.checkpoint import save_checkpoint
         
+        # Periodic Checkpoint
         if (epoch + 1) % 10 == 0:
-            run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
-            run_dir.mkdir(parents=True, exist_ok=True)
             ckpt_path = str(run_dir / f"checkpoint_epoch_{epoch+1}.pt")
-            from src.utils.checkpoint import save_checkpoint
             save_checkpoint(model, optimizer, epoch, val_loss, ckpt_path)
             print(f"Saved checkpoint to {ckpt_path}")
+            
+        # Best Model Checkpoint
+        if val_loss < metrics["best_val_loss"]:
+            metrics["best_val_loss"] = val_loss
+            best_path = str(run_dir / "best_model.pt")
+            save_checkpoint(model, optimizer, epoch, val_loss, best_path)
+            print(f"🔥 New best model (Val Loss: {val_loss:.6f}) saved to {best_path}")
 
     trainer.train(callbacks=[checkpoint_callback])
     
     # Save final model
-    run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
-    run_dir.mkdir(parents=True, exist_ok=True)
     final_path = str(run_dir / "final_model.pt")
     from src.utils.checkpoint import save_checkpoint
     save_checkpoint(model, optimizer, config.training.epochs, 0.0, final_path)
     print(f"Training complete! Saved to {final_path}")
     
-    # Export metrics
+    # --- POST-TRAINING EVALUATION ---
+    print("\n📊 Starting Post-Training Evaluation...")
+    
+    # Load Best Model
+    best_path = run_dir / "best_model.pt"
+    if best_path.exists():
+        checkpoint = torch.load(best_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"✅ Loaded best model from epoch {checkpoint.get('epoch', '?')} (Val Loss: {checkpoint.get('loss', '?'):.6f})")
+    else:
+        print("⚠️ Best model not found, using final model state.")
+
+    from src.evaluation.evaluator import ModelEvaluator
+    from src.evaluation.visualizer import MetricsVisualizer
+    
+    # Run Evaluation
+    evaluator = ModelEvaluator(model, test_loader, device=device, sample_rate=config.audio.sample_rate)
+    eval_results = evaluator.evaluate(save_predictions=True, output_dir=run_dir / "predictions")
+    
+    # Save JSON Results
+    evaluator.save_results(eval_results, run_dir / "evaluation_results.json", format='json')
+    
+    # Generate HTML Report
+    visualizer = MetricsVisualizer(eval_results, sample_rate=config.audio.sample_rate)
+    report_path = run_dir / "evaluation_report.html"
+    
+    # Load generic history for plot if available
+    train_history_plot = None
+    if metrics["history"]:
+        train_history_plot = metrics["history"]
+        
+    visualizer.create_full_report(report_path, training_history=train_history_plot)
+    
+    # Log to W&B
+    if logger.use_wandb:
+        try:
+            import wandb
+            print("🚀 Logging Evaluation Artifacts to W&B...")
+            
+            # 1. Log Aggregated Metrics
+            wandb_metrics = {}
+            for k, v in eval_results['metrics'].items():
+                if isinstance(v, dict) and 'mean' in v:
+                    wandb_metrics[f"test/{k}"] = v['mean']
+            wandb.log(wandb_metrics)
+            
+            # 2. Log HTML Report
+            if report_path.exists():
+                wandb.log({"evaluation_report": wandb.Html(open(report_path).read())})
+            
+            # 3. Log Best Model Artifact
+            if best_path.exists():
+                artifact = wandb.Artifact(name=f"{logger.project}_{logger.run_name}_best", type="model")
+                artifact.add_file(str(best_path))
+                wandb.log_artifact(artifact)
+                
+            # 4. Log Audio Samples & Spectrograms (Top 5)
+            # Create a W&B Table
+            columns = ["id", "input_audio", "target_audio", "pred_audio", "spectrogram_comparison", "freq_response"]
+            table = wandb.Table(columns=columns)
+            
+            # Get some samples from test loader for logging
+            # Re-run inference on a few samples specifically for logging images
+            model.eval()
+            inputs, targets = next(iter(test_loader))
+            inputs = inputs.to(device)
+            preds = model(inputs)
+            
+            num_samples = min(5, inputs.shape[0])
+            for i in range(num_samples):
+                inp = inputs[i].detach()
+                tgt = targets[i].detach()
+                prd = preds[i].detach()
+                
+                # Audio
+                sr = config.audio.sample_rate
+                wb_inp = wandb.Audio(inp.cpu().numpy().flatten(), sample_rate=sr, caption="Input")
+                wb_tgt = wandb.Audio(tgt.cpu().numpy().flatten(), sample_rate=sr, caption="Target")
+                wb_prd = wandb.Audio(prd.cpu().numpy().flatten(), sample_rate=sr, caption="Predicted")
+                
+                # Plots (using Visualizer helper)
+                fig_spec = visualizer.plot_spectrogram_comparison(prd, tgt)
+                img_spec = wandb.Image(fig_spec) # Plotly figure to Image
+                
+                fig_freq = visualizer.plot_frequency_response(prd, tgt)
+                img_freq = wandb.Image(fig_freq)
+                
+                table.add_data(i, wb_inp, wb_tgt, wb_prd, img_spec, img_freq)
+                
+            wandb.log({"evaluation_samples": table})
+            print("✅ Logged evaluation samples to W&B")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to log to W&B: {e}")
+
+    # Export metrics (Legacy)
     if args.metrics_out:
         import json
         metrics["final_loss"] = metrics["history"][-1]["val_loss"] if metrics["history"] else 0.0
