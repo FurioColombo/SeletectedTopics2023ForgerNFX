@@ -1,0 +1,24 @@
+# Weights & Biases Configuration for Forger NFX
+
+project: "forger-nfx"
+
+# Default settings
+settings:
+  log_frequency: 10  # Log metrics every N batches
+  save_model_frequency: 10  # Save model every N epochs
+  log_audio_samples: true  # Log audio samples during training
+  audio_sample_frequency: 5  # Log audio every N epochs
+  
+# Metrics to track
+metrics:
+  - train_loss
+  - val_loss
+  - esr
+  - spectral_convergence
+  - learning_rate
+
+# Notes for setup:
+# 1. Create free wandb account at https://wandb.ai/
+# 2. Get API key from https://wandb.ai/authorize
+# 3. For local training: Run `wandb login` and paste API key
+# 4. For Kaggle: Add API key as secret named "wandb_api_key"

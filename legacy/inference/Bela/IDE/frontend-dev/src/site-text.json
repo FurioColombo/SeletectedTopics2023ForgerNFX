@@ -1,0 +1,262 @@
+{
+    "locale": "en",
+	"popups": {
+    "generic": {
+      "ok": "OK",
+      "cancel": "Cancel"
+    },
+		"create_new": {
+			"title": "Create new project",
+			"text": "Choose the development language for this project, and give it a name:",
+			"button": "Create project",
+			"input": "Enter your project name",
+			"exists": "This project already exists",
+			"sanitised": "This project will be saved as"
+		},
+		"save_as": {
+			"title": "Save project as ...",
+			"text": "",
+			"input": "Enter your new project name",
+			"button": "Save project",
+			"exists": "This project already exists",
+			"sanitised": "This project will be saved as"
+		},
+		"delete_project": {
+			"title": "Delete this project?",
+			"text": "Warning: There is no undo.",
+			"button": "Delete project"
+		},
+		"create_new_file": {
+			"title": "Create new file",
+			"text": "Enter the new file name and extension (only files with .cpp, .c or .S extensions will be compiled).",
+			"input": "Your new file name",
+			"button": "Create file",
+			"exists": "This file already exists",
+			"sanitised": "This file will be saved as"
+		},
+		"create_new_project_from_zip": {
+			"title": "Create project from ",
+			"text": "Choose a name for this project:",
+			"sub_text": "To add this file to an existing project, close this window and use the Upload File button in the Project Explorer tab.",
+			"input": "New project name",
+			"button": "Create project",
+			"exists": "This project already exists",
+			"sanitised": "This project will be saved as"
+		},
+		"create_new_folder": {
+			"title": "Create new folder",
+			"text": "Enter the new folder name.",
+			"input": "Your new folder name",
+			"button": "Create folder",
+			"exists": "This folder already exists",
+			"sanitised": "This folder will be saved as"
+		},
+		"rename_file": {
+			"title": "Rename this file?",
+			"input": "The new file name",
+			"text": "Enter the new file name and extension (only files with .cpp, .c or .S extensions will be compiled).",
+			"button": "Rename file",
+			"exists": "This file already exists",
+			"sanitised": "This file will be saved as"
+		},
+    "rename_folder": {
+			"title": "Rename this folder?",
+			"input": "The new folder name",
+			"text": "Enter the new folder name",
+			"button": "Rename folder",
+			"exists": "This folder already exists",
+			"sanitised": "This folder will be saved as"
+		},
+		"delete_project": {
+			"title": "Delete project `{0}`",
+			"text": "Warning: There is no undo.",
+			"button": "Delete project"
+		},
+		"delete_file": {
+			"title": "Delete file `{0}`?",
+			"text": "Warning: There is no undo.",
+			"button": "Delete file"
+		},
+    "upload_file": {
+			"title": "Upload a file",
+			"text": "Select a file to upload.",
+			"button": "Upload file"
+		},
+    "upload_file_progress": {
+			"title": "Uploading",
+			"text": "The files are being uploaded...",
+			"button": "OK"
+		},
+    "upload_file_success": {
+			"title": "Success",
+			"text": "All files uploaded successfully",
+			"button": "OK"
+		},
+    "upload_file_error": {
+			"title": "Uploading file error"
+		},
+		"upload_file_nofileselected_error": {
+			"title": "Error: No file selected for upload",
+			"text": "No file was selected for upload",
+			"button": "Try Again"
+		},
+		"restore_default_project_settings": {
+			"title": "Restore default project settings?",
+			"text": "Your current project settings will be restored to defaults. There is no undo.",
+			"button": "Restore defaults"
+		},
+		"restore_default_ide_settings": {
+			"title": "Restore default IDE settings?",
+			"text": "Your current IDE settings will be restored to defaults. There is no undo.",
+			"button": "Restore defaults"
+		},
+		"shutdown": {
+			"title": "Shut down Bela?",
+			"text": "Bela will disconnect from the IDE and shutdown gracefully.",
+			"button": "Yes, shut down Bela"
+		},
+		"update": {
+			"title": "Update Bela",
+			"text": "Select your Bela update (will be a ZIP file).",
+			"button": "Update now"
+		},
+		"about": {
+			"title": "About Bela",
+			"text": "Bela was born out of research at Queen Mary University of London. It is developed and supported by the Bela team, and sold by Augmented Instruments Ltd in London, UK. For more information, please visit bela.io.",
+			"button": "Close"
+		},
+		"version": {
+			"title": "Version details",
+			"image_version_label": "Image: ",
+			"core_version_label": "Core code: ",
+			"textTemplateSuccess": [ "Last updated on '{0}'", "from file '{0}'", "via '{0}'", "Update was successful"],
+			"textTemplateFailed": [ "Last attempted update on '{0}'", "from file '{0}'", "via '{0}'", "Update failed"],
+			"textTemplateUnknown": [ "Last attempted update on '{0}'", "from file '{0}'", "via '{0}'", ""],
+			"textUnknown": [ "We could not determine the last time your core code was updated" ],
+			"textTemplateGitDesc": "Git desc: '{0}'",
+			"button": "Close"
+		},
+		"overwrite": {
+			"title": "Overwrite file?",
+			"text": " already exists in this project. Overwrite?",
+			"button": "Overwrite",
+			"tick": "Don't ask me again this session"
+		},
+		"commit": {
+			"title": "Commit your changes",
+			"text": "Enter a commit message:",
+			"input": "Your commit message",
+			"button": "Commit"
+		},
+		"branch": {
+			"title": "Create a new branch",
+			"text": "Specify this branch's name:",
+			"input": "Your new ranch name",
+			"button": "Create branch"
+		},
+		"discard": {
+			"title": "Discard changes?",
+			"text": "This will discard all changes since your last commit. There is no undo.",
+			"button": "Discard changes"
+		},
+		"file_changed": {
+			"title": "File changed on disk",
+			"text": "This file has been edited in another tab. Would you like to reload to discard your changes here and switch to the edited version?",
+			"button": "Yes, reload",
+			"cancel": "No, keep going"
+		},
+		"enter_readonly": {
+			"title": "This window is now read-only",
+			"text": "You have opened this file in more than one browser window. Because files can only be edited in one window at a time, this window is now in read-only mode.",
+			"button": "OK"
+		},
+		"exit_readonly": {
+			"title": "Exit read-only mode?",
+			"text": [
+				"To exit read-only mode and edit this file, click Reload. This will refresh the page and load the most recent version of this file, and you'll be able to edit it here.",
+				"To stay in read-only mode, click Cancel."
+			],
+			"submit": "Reload",
+			"cancel": "Cancel"
+		},
+		"upload_size_error": {
+		   "title": "Error: File(s) `{0}` too large",
+			 "text": "The maximum size for uploading files via drag and drop interface is 20MB. Please click 'try again' to select a file from your computer.",
+			 "button": "Try Again"
+		 }
+	},
+  "tabs": {
+    "includeTitle": "Include this Library",
+    "infoTitle": "Library info",
+    "examplesTitle": "Examples",
+    "filesTitle": "Files",
+    "includeInstructions": "Copy & paste at the top of each .cpp file in your project."
+  },
+  "file_view": {
+    "sources": "Sources",
+    "headers": "Headers",
+    "abstractions": "Abstractions",
+    "images": "Images",
+    "resources": "Resources",
+    "directories": "Directories"
+  },
+	"editor_view": {
+			"preview": "This is a preview - these objects are not editable in the browser.",
+      "pd": {
+        "error": "Rendering pd patch failed!"
+      },
+      "binary": {
+        "error": "This type of file cannot be displayed."
+      },
+      "deleted": {
+        "error": "This file no longer exists. Select or create another file."
+      },
+      "keypress_read_only": "This file is read-only. Open a file or refresh the page to keep editing."
+	},
+	"settings_view": {
+		"update": "Beginning update - this may take several minutes",
+		"browser": "The browser will temporarily disconnect, and may become unresponsive",
+		"ide": "Do not use the IDE during this process",
+		"zip": "This is not a valid zip archive."
+	},
+	"toolbar": {
+		"run": "Build & run",
+		"stop": "Stop",
+		"clear": "Clear console",
+		"scope": "Launch scope",
+		"gui": "Launch GUI"
+	},
+	"console": {
+		"update_error": "Error updating the board: `{0}`. Please try a different zip archive",
+		"messages": "Your code is printing to the console too quickly. Check your audio thread for print messages.",
+		"disconnect": "Bela has disconnected. Any changes you make will not be saved. Check your USB connection and reboot Bela."
+	},
+	"ide_browser": {
+		"stop": "Stopping Bela ...",
+		"mode_switch": " mode switch detected on the audio thread.",
+		"mode_switches": " mode switches detected on the audio thread.",
+		"file_changed": "This file was edited in another window and has changed. Reopen the file to make edits.",
+		"zip_error": "There was a problem updating Bela. Make sure you have selected the correct zip file and try again."
+	},
+	"docs_view": {
+		"examples": "Examples that use this class:",
+		"button": "Launch documentation"
+	},
+  "funcKeys": {
+    "openProject"	: "Open project",
+	"uploadZipProject" : "Create project from zip archive",
+  	"openExample"	: "Open example",
+  	"newProject"	: "Create project",
+  	"saveAs"		: "Save project",
+  	"deleteProject"	: "Delete project",
+  	"cleanProject"	: "Clean project",
+  	"openFile"		: "Open file",
+  	"newFile"		: "Create file",
+  	"uploadFile"	: "Upload file",
+  	"renameFile"	: "Rename file",
+  	"deleteFile"	: "Delete file",
+  	"init"			: "Initialise",
+  	"stop"			: "Stop",
+  	"fileRejected"	: "Upload file"
+  }
+}

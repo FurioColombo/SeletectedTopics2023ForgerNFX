@@ -1,0 +1,150 @@
+{
+	"BelaMini": [
+		{
+			"section": "Analog",
+			"name": "analog-output"
+		},
+		{
+			"section": "Instruments",
+			"name": "d-box"
+		},
+		{
+			"section": "Extras",
+			"name": "gpio-analog-loopback-test"
+		},
+		{
+			"section": "Extras",
+			"name": "salt-factory-taste"
+		}
+	],
+	"Ctag": [
+		{
+			"section": "Communication",
+			"name": "logging-sensors"
+		},
+		{
+			"section": "Capelets",
+			"name": "multiplexer-display"
+		},
+		{
+			"section": "Capelets",
+			"name": "audio-expander"
+		},
+		{
+			"section": "Analog",
+			"name": "analog-input"
+		},
+		{
+			"section": "Analog",
+			"name": "analog-output"
+		},
+		{
+			"section": "Analog",
+			"name": "scope-analog"
+		},
+		{
+			"section": "Audio",
+			"name": "tremolo"
+		},
+		{
+			"section": "SuperCollider",
+			"name": "3-analog-in"
+		},
+		{
+			"section": "SuperCollider",
+			"name": "4-analog-out"
+		},
+		{
+			"section": "SuperCollider",
+			"name": "6-pattern-control"
+		},
+		{
+			"section": "Extras",
+			"name": "cape-test"
+		},
+		{
+			"section": "Extras",
+			"name": "tank-wars"
+		},
+		{
+			"section": "Extras",
+			"name": "salt-factory-taste"
+		},
+		{
+			"section": "Extras",
+			"name": "measure-noisefloor"
+		},
+		{
+			"section": "Extras",
+			"name": "gpio-analog-loopback-test"
+		},
+		{
+			"section": "Extras",
+			"name": "oscillator-bank"
+		},
+		{
+			"section": "Sensors",
+			"name": "ultrasonic-distance"
+		},
+		{
+			"section": "Sensors",
+			"name": "LDR"
+		},
+		{
+			"section": "Instruments",
+			"name": "d-box"
+		},
+		{
+			"section": "PureData",
+			"name": "sample-scrub"
+		},
+		{
+			"section": "PureData",
+			"name": "karplus-strong"
+		},
+		{
+			"section": "PureData",
+			"name": "midi-cv-midi"
+		},
+		{
+			"section": "PureData",
+			"name": "analog-in"
+		},
+		{
+			"section": "PureData",
+			"name": "envelope-trigger"
+		},
+		{
+			"section": "PureData",
+			"name": "rubber-duckie"
+		},
+		{
+			"section": "PureData",
+			"name": "analog-out"
+		},
+		{
+			"section": "PureData",
+			"name": "simple-fm"
+		},
+		{
+			"section": "Csound",
+			"name": "1-analog-in"
+		},
+		{
+			"section": "Csound",
+			"name": "2-analog-out"
+		},
+		{
+			"section": "Csound",
+			"name": "C++-libcsound-Control"
+		},
+		{
+			"section": "Csound",
+			"name": "C++-libcsound-gain"
+		},
+		{
+			"section": "Csound",
+			"name": "COSMO_FX"
+		}
+	]
+}
