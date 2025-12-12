@@ -55,7 +55,10 @@ class MonitoringLogger:
                         reinit=True
                     )
                     self.wandb_available = True
-                    print(f"✅ Wandb initialized: {wandb.run.url}")
+                    print("\n" + "="*60)
+                    print(f"✅ Weights & Biases initialized successfully!")
+                    print(f"🔗 Dashboard URL: {wandb.run.url}")
+                    print("="*60 + "\n")
                 else:
                     # User requested NO anonymous fallback.
                     # If key is missing, fail hard here so we switch to Local Logging via the except block.
@@ -90,7 +93,7 @@ class MonitoringLogger:
             url_file = self.log_dir / "wandb_url.txt"
             with open(url_file, 'w') as f:
                 f.write(self.run.url)
-            print(f"🔗 W&B URL saved to: {url_file}")
+            print(f"📄 W&B URL also saved to: {url_file}")
 
     
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None):
@@ -261,7 +264,7 @@ def create_kaggle_logger(
         print("💡 To enable W&B logging on Kaggle:")
         print("   1. Open the Notebook in the Editor")
         print("   2. Go to 'Add-ons' -> 'Secrets'")
-        print("   3. Add a new secret with Label: 'wandb_api_key' andto uderstand how to fix the real isseu Value: <your-api-key>")
+        print("   3. Add a new secret with Label: 'wandb_api_key' and Value: <your-api-key>")
         print("   4. Ensure the checkbox 'Attached' is checked")
         print("   I have enabled W&B to allow Anonymous Mode fallback as a workaround.")
         # Enable W&B to allow Anonymous Mode fallback (handled in MonitoringLogger)

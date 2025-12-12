@@ -56,8 +56,26 @@ class MultiScaleSpectralLoss(AudioLoss):
         
         p = pred.reshape(-1, pred.shape[-1])
         t = target.reshape(-1, target.shape[-1])
+        
+        # Get input length to validate FFT sizes
+        input_length = p.shape[-1]
+        
+        # Filter FFT sizes to only use those that won't cause padding errors
+        # torch.stft pads by n_fft//2 on each side, so we need input_length >= n_fft//2
+        valid_fft_sizes = [n_fft for n_fft in self.fft_sizes if n_fft <= input_length]
+        
+        if not valid_fft_sizes:
+            # Fallback: use the largest power of 2 smaller than or equal to input length
+            import math
+            if input_length >= 64:
+                max_fft = 2 ** int(math.log2(input_length))
+                valid_fft_sizes = [max_fft]
+            else:
+                # For very small inputs, use the input length itself (rounded down to power of 2)
+                max_fft = 2 ** int(math.log2(max(input_length, 2)))  # minimum FFT size of 2
+                valid_fft_sizes = [max_fft]
 
-        for n_fft in self.fft_sizes:
+        for n_fft in valid_fft_sizes:
             hop_length = n_fft // 4
             window = torch.hann_window(n_fft, device=pred.device)
             
@@ -89,4 +107,4 @@ class MultiScaleSpectralLoss(AudioLoss):
             
             total_loss += loss
             
-        return total_loss / len(self.fft_sizes)
+        return total_loss / len(valid_fft_sizes)
