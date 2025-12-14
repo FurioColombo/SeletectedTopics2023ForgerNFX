@@ -140,15 +140,42 @@ def main():
     run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
     run_dir.mkdir(parents=True, exist_ok=True)
     
-    # Select fixed samples for tracking (first 3)
+    # Select fixed samples for tracking (full files)
     fixed_val_samples = []
     try:
-        inputs, targets = next(iter(val_loader))
-        num_idx = min(3, inputs.shape[0])
-        for i in range(num_idx):
-            fixed_val_samples.append((inputs[i:i+1].to(device), targets[i:i+1].to(device)))
-    except StopIteration:
-        print("⚠️ Warning: Validation loader is empty, cannot pick fixed samples.")
+        # Manually load a few files from the validation set (or just dataset root)
+        # We need full length audio for listening, not 512-sample blocks
+        from src.utils.io import load_audio
+        import random
+        
+        # Get list of files in input_root
+        input_files = sorted([f for f in os.listdir(input_root) if f.endswith('.wav')])
+        if len(input_files) > 0:
+            # Pick 3 random files
+            selected_files = input_files[:3] if len(input_files) <= 3 else random.sample(input_files, 3)
+            
+            for fname in selected_files:
+                inp_path = os.path.join(input_root, fname)
+                tgt_path = os.path.join(output_root, fname)
+                
+                if os.path.exists(tgt_path):
+                    # Load full audio
+                    inp_wave = load_audio(inp_path)
+                    tgt_wave = load_audio(tgt_path)
+                    
+                    # Trim to reasonable length for logging (e.g. 5 seconds max)
+                    max_len = config.audio.sample_rate * 5
+                    if inp_wave.shape[-1] > max_len:
+                        inp_wave = inp_wave[..., :max_len]
+                        tgt_wave = tgt_wave[..., :max_len]
+                        
+                    fixed_val_samples.append((inp_wave.to(device), tgt_wave.to(device)))
+                    print(f"Loaded fixed sample: {fname} ({inp_wave.shape[-1]/config.audio.sample_rate:.2f}s)")
+        else:
+            print("⚠️ No WAV files found in input root for logging.")
+            
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to load fixed samples: {e}")
 
     import wandb # Import for explicit type checking if needed, though logger handles it
     
@@ -178,10 +205,24 @@ def main():
                 
                 with torch.no_grad():
                     for idx, (inp, tgt) in enumerate(fixed_val_samples):
-                        pred = model(inp)
+                        # inp is (channels, time), needs (1, channels, time)
+                        if inp.dim() == 2:
+                            inp_batch = inp.unsqueeze(0)
+                        else:
+                            inp_batch = inp
+                            
+                        # Run inference
+                        # Note: LSTM model handles arbitrary length if fully convolutional or carefully implemented
+                        # LSTMModel: expects (batch, channels, time) -> (batch, time, channels) -> LSTM -> ...
+                        # It should handle variable length fine as long as block_size isn't hardcoded in forward (it isn't)
+                        pred_batch = model(inp_batch)
+                        
+                        # Remove batch dim: (1, channels, time) -> (channels, time)
+                        pred = pred_batch.squeeze(0)
                         
                         # Prepare audio for W&B
-                        # wandb.Audio expects numpy array
+                        # wandb.Audio expects numpy array 1D or (time, channels)
+                        # We have (channels, time). Flatten works for mono.
                         wb_inp = wandb.Audio(inp.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Input {idx}")
                         wb_tgt = wandb.Audio(tgt.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Target {idx}")
                         wb_pred = wandb.Audio(pred.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Pred {idx}")
