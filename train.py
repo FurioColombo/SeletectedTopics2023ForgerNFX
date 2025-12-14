@@ -150,6 +150,18 @@ def main():
     run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
     run_dir.mkdir(parents=True, exist_ok=True)
     
+    # Select fixed samples for tracking (first 3)
+    fixed_val_samples = []
+    try:
+        inputs, targets = next(iter(val_loader))
+        num_idx = min(3, inputs.shape[0])
+        for i in range(num_idx):
+            fixed_val_samples.append((inputs[i:i+1].to(device), targets[i:i+1].to(device)))
+    except StopIteration:
+        print("⚠️ Warning: Validation loader is empty, cannot pick fixed samples.")
+
+    import wandb # Import for explicit type checking if needed, though logger handles it
+    
     def checkpoint_callback(epoch, train_loss, val_loss, val_metrics=None):
         # Log to W&B / Local
         log_dict = {
@@ -161,6 +173,37 @@ def main():
             for k, v in val_metrics.items():
                 log_dict[f"val/{k}"] = v
         
+        # Log Audio Samples during Checkpoint
+        if logger.use_wandb and logger.run and fixed_val_samples:
+            model.eval()
+            try:
+                # Log 3 fixed samples
+                sample_rate = config.audio.sample_rate
+                
+                # Combine into a single W&B Table for cleaner UI or just log individual Audios
+                # For checkpoint tracking, individual audio files or a small table is fine.
+                # Let's use a small table for each checkpoint to keep it organized
+                columns = ["id", "input", "target", "prediction"]
+                table = wandb.Table(columns=columns)
+                
+                with torch.no_grad():
+                    for idx, (inp, tgt) in enumerate(fixed_val_samples):
+                        pred = model(inp)
+                        
+                        # Prepare audio for W&B
+                        # wandb.Audio expects numpy array
+                        wb_inp = wandb.Audio(inp.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Input {idx}")
+                        wb_tgt = wandb.Audio(tgt.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Target {idx}")
+                        wb_pred = wandb.Audio(pred.cpu().numpy().flatten(), sample_rate=sample_rate, caption=f"Pred {idx}")
+                        
+                        table.add_data(idx, wb_inp, wb_tgt, wb_pred)
+                
+                # Log table to W&B
+                logger.run.log({f"val_samples/epoch_{epoch+1}": table}, step=epoch+1)
+            except Exception as e:
+                print(f"⚠️ Failed to log audio samples: {e}")
+            model.train() # Switch back to train mode
+
         logger.log_metrics(log_dict, step=epoch + 1)
         
         # Keep metrics for backward compatibility with kaggle_train.py
@@ -242,7 +285,7 @@ def main():
             
             # 2. Log HTML Report
             if report_path.exists():
-                wandb.log({"evaluation_report": wandb.Html(open(report_path).read())})
+                wandb.log({"evaluation_report": wandb.Html(open(report_path, encoding='utf-8').read())})
             
             # 3. Log Best Model Artifact
             if best_path.exists():
@@ -250,7 +293,7 @@ def main():
                 artifact.add_file(str(best_path))
                 wandb.log_artifact(artifact)
                 
-            # 4. Log Audio Samples & Spectrograms (Top 5)
+            # 4. Log Audio Samples & Spectrograms (Top 3)
             # Create a W&B Table
             columns = ["id", "input_audio", "target_audio", "pred_audio", "spectrogram_comparison", "freq_response"]
             table = wandb.Table(columns=columns)
@@ -262,7 +305,7 @@ def main():
             inputs = inputs.to(device)
             preds = model(inputs)
             
-            num_samples = min(5, inputs.shape[0])
+            num_samples = min(3, inputs.shape[0]) # Requested 3 samples
             for i in range(num_samples):
                 inp = inputs[i].detach()
                 tgt = targets[i].detach()
