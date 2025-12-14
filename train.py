@@ -323,24 +323,44 @@ def main():
                 artifact = wandb.Artifact(name=f"{logger.project}_{logger.run_name}_best", type="model")
                 artifact.add_file(str(best_path))
                 wandb.log_artifact(artifact)
+
+            # 3b. Log Predictions (Audio Files) Artifact
+            predictions_dir = run_dir / "predictions"
+            if predictions_dir.exists():
+                print(f"📦 Creating predictions artifact from {predictions_dir}...")
+                pred_artifact = wandb.Artifact(name=f"{logger.project}_{logger.run_name}_predictions", type="predictions")
+                pred_artifact.add_dir(str(predictions_dir))
+                wandb.log_artifact(pred_artifact)
                 
-            # 4. Log Audio Samples & Spectrograms (Top 3)
+            # 4. Log Audio Samples & Spectrograms (Top 5) with Comparison to Global Mean
             # Create a W&B Table
-            columns = ["id", "input_audio", "target_audio", "pred_audio", "spectrogram_comparison", "freq_response"]
+            # Added columns for metrics comparison
+            columns = ["id", "input_audio", "target_audio", "pred_audio", "spectrogram_comparison", "freq_response", "esr", "esr_global_mean"]
             table = wandb.Table(columns=columns)
             
-            # Get some samples from test loader for logging
-            # Re-run inference on a few samples specifically for logging images
+            # Get samples from test loader for logging
             model.eval()
             inputs, targets = next(iter(test_loader))
             inputs = inputs.to(device)
             preds = model(inputs)
             
-            num_samples = min(3, inputs.shape[0]) # Requested 3 samples
+            # Calculate global mean for ESR for comparison
+            global_esr_mean = eval_results['metrics'].get('esr', {}).get('mean', -1.0)
+            
+            from src.evaluation.metrics import calculate_esr
+            
+            num_samples = min(5, inputs.shape[0]) # Requested 5 samples
             for i in range(num_samples):
                 inp = inputs[i].detach()
                 tgt = targets[i].detach()
                 prd = preds[i].detach()
+                
+                # Calculate metric for this specific sample
+                # Need to add batch dim for metric function if it expects it, or ensure it handles single
+                # metrics functions usually expect (batch, channels, time) or (channels, time) depending on impl
+                # Our metrics.py usually handles tensors.
+                # calculate_esr expects (pred, target)
+                sample_esr = calculate_esr(prd, tgt)
                 
                 # Audio
                 sr = config.audio.sample_rate
@@ -355,7 +375,7 @@ def main():
                 fig_freq = visualizer.plot_frequency_response(prd, tgt)
                 img_freq = wandb.Image(fig_freq)
                 
-                table.add_data(i, wb_inp, wb_tgt, wb_prd, img_spec, img_freq)
+                table.add_data(i, wb_inp, wb_tgt, wb_prd, img_spec, img_freq, sample_esr, global_esr_mean)
                 
             wandb.log({"evaluation_samples": table})
             print("✅ Logged evaluation samples to W&B")
