@@ -181,10 +181,12 @@ def main():
     
     def checkpoint_callback(epoch, train_loss, val_loss, val_metrics=None):
         # Log to W&B / Local
+        current_lr = optimizer.param_groups[0]['lr']
         log_dict = {
             "train_loss": train_loss,
             "val_loss": val_loss,
-            "epoch": epoch + 1
+            "epoch": epoch + 1,
+            "learning_rate": current_lr
         }
         if val_metrics:
             for k, v in val_metrics.items():
