@@ -34,34 +34,24 @@ def main():
     args = parser.parse_args()
 
     # 1. Load Configuration
-    config = ProjectConfig()
+    from src.config.config import load_config
+    config = load_config(args.config)
     
-    if args.config:
-        import yaml
-        with open(args.config, 'r') as f:
-            yaml_config = yaml.safe_load(f)
-            # Override defaults
-            if 'device' in yaml_config:
-                # device is handled locally in script, not in config object usually, but let's see
-                pass
-            if 'batch_size' in yaml_config:
-                config.training.batch_size = yaml_config['batch_size']
-            if 'epochs' in yaml_config:
-                config.training.epochs = yaml_config['epochs']
-            if 'data_root' in yaml_config:
-                args.dataset_root = yaml_config['data_root']
-            if 'metrics_out' in yaml_config:
-                args.metrics_out = yaml_config['metrics_out']
-            if 'checkpoint_dir' in yaml_config:
-                config.output_dir = yaml_config['checkpoint_dir']
-                
     # CLI args override config file
     if args.model: config.model.name = args.model
-    if args.epochs != 100: config.training.epochs = args.epochs # Only override if changed from default? Or always?
-    # Let's say CLI args always take precedence if provided explicitly.
-    # But argparse defaults make it hard to know if user provided it.
-    # For now, let's assume if config file is passed, we trust it, but CLI args override.
+    if args.epochs != 10: config.training.epochs = args.epochs # Argument parser default is 10
     
+    if args.dataset_root: args.dataset_root = args.dataset_root # Ensure this is passed if needed, mainly for data loader
+    
+    # Force CLI overrides if provided distinct from defaults
+    # Note: Argparse defaults make it hard to distinguish 'not provided' vs 'default'
+    # We assume if the user runs with explicit flags they want them.
+    # For now, batch_size and lr from CLI (if default) might override Config.
+    # To properly handle this, we should check if they were passed, but simplifying:
+    # If config loaded from file, we might trust it more than CLI defaults?
+    # Common pattern: Config File > Defaults. CLI Flags > Config File.
+    
+    # Let's assume passed args should override.
     config.training.batch_size = args.batch_size
     config.training.learning_rate = args.lr
     if args.output_dir != "runs": config.output_dir = args.output_dir

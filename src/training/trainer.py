@@ -5,6 +5,8 @@ from tqdm import tqdm
 from src.config.config import TrainingConfig
 from src.models.base import BaseAudioModel
 from .loss import AudioLoss
+from .early_stopping import EarlyStopping
+from .schedulers import create_scheduler
 
 class Trainer:
     def __init__(
@@ -27,6 +29,23 @@ class Trainer:
         self.device = device
         self.validation_loss_fns = validation_loss_fns or {}
         
+        # Initialize Scheduler
+        self.scheduler = create_scheduler(
+            optimizer,
+            config.scheduler_type,
+            config.scheduler_params,
+            initial_lr=config.learning_rate
+        )
+        
+        # Initialize Early Stopping
+        self.early_stopping = None
+        if config.early_stopping:
+            self.early_stopping = EarlyStopping(
+                patience=config.early_stopping_patience,
+                min_delta=0.0001,
+                mode='min'
+            )
+        
     def train_epoch(self) -> float:
         self.model.train()
         total_loss = 0.0
@@ -41,8 +60,17 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             
+            # Step Scheduler (Batch)
+            self.scheduler.step_batch(batch_idx)
+
             total_loss += loss.item()
-            pbar.set_postfix({'loss': f'{loss.item():.6f}'})
+            
+            # Update pbar with current LR
+            current_lr = self.optimizer.param_groups[0]['lr']
+            pbar.set_postfix({
+                'loss': f'{loss.item():.6f}',
+                'lr': f'{current_lr:.2e}'
+            })
             
         return total_loss / len(self.train_loader)
         
@@ -79,12 +107,23 @@ class Trainer:
             train_loss = self.train_epoch()
             val_loss, val_metrics = self.validate()
             
+            # Step Scheduler (Epoch)
+            self.scheduler.step_epoch(val_loss)
+            
+            current_lr = self.optimizer.param_groups[0]['lr']
             epoch_pbar.set_postfix({
-                'train_loss': f'{train_loss:.6f}',
-                'val_loss': f'{val_loss:.6f}'
+                'train': f'{train_loss:.4f}',
+                'val': f'{val_loss:.4f}',
+                'lr': f'{current_lr:.2e}'
             })
-            print(f"\nEpoch {epoch+1}/{self.config.epochs} - Train Loss: {train_loss:.6f} - Val Loss: {val_loss:.6f}")
+            print(f"\nEpoch {epoch+1}/{self.config.epochs} - Train: {train_loss:.6f} - Val: {val_loss:.6f} - LR: {current_lr:.2e}")
             
             if callbacks:
                 for cb in callbacks:
                     cb(epoch, train_loss, val_loss, val_metrics)
+            
+            # Early Stopping Check
+            if self.early_stopping:
+                if self.early_stopping(val_loss):
+                    print(f"\n🛑 Early stopping triggered after {epoch+1} epochs.")
+                    break
