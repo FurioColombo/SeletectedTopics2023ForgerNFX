@@ -327,7 +327,7 @@ def main():
             
             # 3. Log Best Model Artifact
             if best_path.exists():
-                artifact = wandb.Artifact(name=f"{logger.project}_{logger.run_name}_best", type="model")
+                artifact = wandb.Artifact(name=f"forger-nfx_{logger.run_name}_best", type="model")
                 artifact.add_file(str(best_path))
                 wandb.log_artifact(artifact)
 
@@ -335,12 +335,13 @@ def main():
             predictions_dir = run_dir / "predictions"
             if predictions_dir.exists():
                 print(f"📦 Creating predictions artifact from {predictions_dir}...")
-                pred_artifact = wandb.Artifact(name=f"{logger.project}_{logger.run_name}_predictions", type="predictions")
+                pred_artifact = wandb.Artifact(name=f"forger-nfx_{logger.run_name}_predictions", type="predictions")
                 pred_artifact.add_dir(str(predictions_dir))
                 wandb.log_artifact(pred_artifact)
                 
             # 4. Log Audio Samples & Spectrograms (Top 5) with Comparison to Global Mean
             # Create a W&B Table
+            print("📊 Creating detailed evaluation table...")
             # Added columns for metrics comparison
             columns = ["id", "input_audio", "target_audio", "pred_audio", "spectrogram_comparison", "freq_response", "esr", "esr_global_mean"]
             table = wandb.Table(columns=columns)
@@ -363,10 +364,6 @@ def main():
                 prd = preds[i].detach()
                 
                 # Calculate metric for this specific sample
-                # Need to add batch dim for metric function if it expects it, or ensure it handles single
-                # metrics functions usually expect (batch, channels, time) or (channels, time) depending on impl
-                # Our metrics.py usually handles tensors.
-                # calculate_esr expects (pred, target)
                 sample_esr = calculate_esr(prd, tgt)
                 
                 # Audio
@@ -397,6 +394,9 @@ def main():
         with open(args.metrics_out, 'w') as f:
             json.dump(metrics, f, indent=2)
         print(f"Metrics saved to {args.metrics_out}")
+        
+    print("🏁 Training and evaluation complete. Finishing logger...")
+    logger.finish()
 
 if __name__ == "__main__":
     main()
