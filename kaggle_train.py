@@ -113,7 +113,29 @@ def main():
                 print("\nLast 5 Epochs:")
                 for entry in metrics['history'][-5:]:
                     print(f"  Epoch {entry['epoch']}: train_loss={entry['train_loss']:.4f}, val_loss={entry['val_loss']:.4f}")
+        
+        # Check for detailed evaluation results
+        eval_results_path = Path(output_dir) / "evaluation_results.json"
+        if eval_results_path.exists():
+            try:
+                with open(eval_results_path, 'r', encoding='utf-8') as f:
+                    eval_results = json.load(f)
+                
+                print("\n=== Post-Training Evaluation ===")
+                if 'summary' in eval_results:
+                    print(eval_results['summary'])
+                elif 'metrics' in eval_results:
+                    # Fallback if summary not present
+                    print("Aggregated Metrics:")
+                    for k, v in eval_results['metrics'].items():
+                        if isinstance(v, dict) and 'mean' in v:
+                            print(f"  {k}: {v['mean']:.4f}")
+                        else:
+                            print(f"  {k}: {v}")
+            except Exception as e:
+                print(f"Error reading evaluation results: {e}")
         else:
+            print("\n(No detailed evaluation_results.json found)")
             print("metrics.json not found in outputs.")
             if Path(output_dir).exists():
                 print(f"Files in {output_dir}:")
