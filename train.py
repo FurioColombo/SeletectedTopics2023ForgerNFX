@@ -123,10 +123,15 @@ def main():
     # 5. Run Training
     print("Starting training...")
     
+    # Generate run name with date
+    from datetime import datetime
+    date_str = datetime.now().strftime("%y%m%d")
+    run_name = f"{args.target_folder}_{config.model.name}_{date_str}"
+    
     # Initialize Logger
     logger = create_kaggle_logger(
         project="forger-nfx",
-        run_name=f"{args.target_folder}_{config.model.name}",
+        run_name=run_name,
         config=config.model_dump()
     )
 
@@ -137,7 +142,7 @@ def main():
         "config": config.model_dump()
     }
     
-    run_dir = paths.get_run_path(f"{args.target_folder}_{config.model.name}")
+    run_dir = paths.get_run_path(run_name)
     run_dir.mkdir(parents=True, exist_ok=True)
     
     # Select fixed samples for tracking (full files)
