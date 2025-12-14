@@ -25,7 +25,11 @@ def sample_eval_results():
             'spectral_convergence': {'mean': 0.12, 'std': 0.04, 'min': 0.06, 'max': 0.20},
         },
         'summary': 'Test evaluation summary',
-        'samples': 10
+        'samples': 10,
+        'per_sample_metrics': [
+            {'esr': 0.15, 'mse': 0.02, 'mae': 0.10, 'spectral_convergence': 0.12} 
+            for _ in range(10)
+        ]
     }
 
 
@@ -46,7 +50,8 @@ class TestVisualizerInit:
         """Test basic initialization."""
         visualizer = MetricsVisualizer(sample_eval_results, sample_rate=44100)
         
-        assert visualizer.eval_results == sample_eval_results
+        # FIX: Attribute name is 'results' not 'eval_results'
+        assert visualizer.results == sample_eval_results
         assert visualizer.sample_rate == 44100
     
     def test_initialization_custom_sample_rate(self, sample_eval_results):
@@ -69,18 +74,11 @@ class TestPlotGeneration:
     
     def test_plot_metrics_distribution(self, sample_eval_results):
         """Test metrics distribution plot."""
-        # Need to add per-sample data for distribution plot
-        sample_eval_results['per_sample_metrics'] = {
-            'esr': [0.1, 0.15, 0.12, 0.18, 0.14]
-        }
-        
         visualizer = MetricsVisualizer(sample_eval_results)
         
-        # This might not be implemented or might need different data structure
-        # Test if method exists
-        if hasattr(visualizer, 'plot_metrics_distribution'):
-            fig = visualizer.plot_metrics_distribution('esr')
-            assert fig is not None
+        fig = visualizer.plot_metrics_distribution('esr')
+        assert fig is not None
+        assert hasattr(fig, 'data')
     
     def test_plot_training_history(self, sample_eval_results):
         """Test training history plot."""
@@ -157,8 +155,8 @@ class TestHTMLReportGeneration:
         assert output_file.exists()
         
         # Check that HTML contains expected content
-        content = output_file.read_text()
-        assert 'Evaluation Summary' in content or 'report' in content.lower()
+        content = output_file.read_text(encoding='utf-8') # FIX: Specify encoding to avoid charmap errors
+        assert 'Evaluation Summary' in content or 'Summary' in content
     
     def test_create_full_report_with_audio(self, sample_eval_results, sample_audio, tmp_path):
         """Test report with sample audio."""
@@ -176,7 +174,7 @@ class TestHTMLReportGeneration:
         
         visualizer.create_full_report(output_file)
         
-        content = output_file.read_text()
+        content = output_file.read_text(encoding='utf-8')
         
         # Basic HTML validation
         assert '<html' in content.lower() or '<!doctype' in content.lower()
@@ -190,13 +188,14 @@ class TestEdgeCases:
         results = {
             'metrics': {},
             'summary': 'Empty test',
-            'samples': 0
+            'samples': 0,
+            'per_sample_metrics': []
         }
         
         visualizer = MetricsVisualizer(results)
         
         # Should initialize without error
-        assert visualizer.eval_results == results
+        assert visualizer.results == results
     
     def test_very_short_audio(self, sample_eval_results):
         """Test with very short audio samples."""

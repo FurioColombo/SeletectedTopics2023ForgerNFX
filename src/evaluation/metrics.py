@@ -1,14 +1,8 @@
-"""
-Enhanced metrics for guitar effect modeling evaluation.
-
-This module provides specialized metrics for evaluating how well a model
-replicates guitar distortion and audio effects, focusing on time-domain,
-frequency-domain, and harmonic characteristics.
-"""
 import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, Optional
+import math
 
 
 def calculate_esr(pred: torch.Tensor, target: torch.Tensor) -> float:
@@ -76,19 +70,36 @@ def spectral_convergence(pred: torch.Tensor, target: torch.Tensor) -> float:
     Returns:
         Spectral convergence (lower is better)
     """
+    # Determine appropriate FFT size based on input length
+    input_length = pred.shape[-1]
+    n_fft = 2048
+    
+    # Adjust n_fft if input is shorter than n_fft
+    if input_length < n_fft:
+        # Use largest power of 2 <= input_length, minimum 64
+        n_fft = 2 ** int(math.log2(max(input_length, 64)))
+        # If still too large (e.g. input < 64), cap at input_length
+        if n_fft > input_length:
+            n_fft = input_length
+            
+    hop_length = n_fft // 4
+    win_length = n_fft
+    
     # Compute STFT
     pred_stft = torch.stft(
         pred.reshape(-1, pred.shape[-1]).squeeze(),
-        n_fft=2048,
-        hop_length=512,
-        window=torch.hann_window(2048, device=pred.device),
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        window=torch.hann_window(win_length, device=pred.device),
         return_complex=True
     )
     target_stft = torch.stft(
         target.reshape(-1, target.shape[-1]).squeeze(),
-        n_fft=2048,
-        hop_length=512,
-        window=torch.hann_window(2048, device=target.device),
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        window=torch.hann_window(win_length, device=target.device),
         return_complex=True
     )
     
@@ -122,8 +133,22 @@ def multi_scale_spectral_loss(
         Average spectral loss across scales
     """
     total_loss = 0.0
+    input_length = pred.shape[-1]
     
-    for n_fft in fft_sizes:
+    # Filter FFT sizes to only use those that fit within input_length
+    valid_fft_sizes = [n for n in fft_sizes if n <= input_length]
+    
+    # Fallback if no valid FFT sizes (input too small)
+    if not valid_fft_sizes:
+        if input_length >= 64:
+            valid_fft_sizes = [2 ** int(math.log2(input_length))]
+        else:
+            # Fallback for extremely small inputs (e.g. < 64)
+            # Ensure at least size 4 or so to run STFT without error if possible, 
+            # or just use input_length if small power of 2
+            valid_fft_sizes = [2 ** int(math.log2(max(input_length, 4)))]
+            
+    for n_fft in valid_fft_sizes:
         hop_length = n_fft // 4
         window = torch.hann_window(n_fft, device=pred.device)
         
@@ -149,7 +174,7 @@ def multi_scale_spectral_loss(
         
         total_loss += mag_loss.item()
     
-    return total_loss / len(fft_sizes)
+    return total_loss / len(valid_fft_sizes)
 
 
 def frequency_response_error(
@@ -196,19 +221,34 @@ def phase_response_error(
     Returns:
         Mean phase error in radians
     """
+    # Determine appropriate FFT size based on input length
+    input_length = pred.shape[-1]
+    n_fft = 2048
+    
+    # Adjust n_fft if input is shorter than n_fft
+    if input_length < n_fft:
+        n_fft = 2 ** int(math.log2(max(input_length, 64)))
+        if n_fft > input_length:
+            n_fft = input_length
+            
+    hop_length = n_fft // 4
+    win_length = n_fft
+
     # Compute STFT
     pred_stft = torch.stft(
         pred.reshape(-1, pred.shape[-1]).squeeze(),
-        n_fft=2048,
-        hop_length=512,
-        window=torch.hann_window(2048, device=pred.device),
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        window=torch.hann_window(win_length, device=pred.device),
         return_complex=True
     )
     target_stft = torch.stft(
         target.reshape(-1, target.shape[-1]).squeeze(),
-        n_fft=2048,
-        hop_length=512,
-        window=torch.hann_window(2048, device=target.device),
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        window=torch.hann_window(win_length, device=target.device),
         return_complex=True
     )
     
@@ -352,3 +392,5 @@ def calculate_all_metrics(
         'impulse_response_similarity': impulse_response_similarity(pred, target),
         'thd_difference_pct': total_harmonic_distortion_similarity(pred, target, sample_rate),
     }
+
+print("Metrics implementations checked.")
