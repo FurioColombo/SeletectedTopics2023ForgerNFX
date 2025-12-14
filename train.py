@@ -126,7 +126,7 @@ def main():
     # Generate run name with date
     from datetime import datetime
     date_str = datetime.now().strftime("%y%m%d")
-    run_name = f"{args.target_folder}_{config.model.name}_{date_str}"
+    run_name = f"{date_str}_{args.target_folder}_{config.model.name}"
     
     # Initialize Logger
     logger = create_kaggle_logger(
