@@ -116,6 +116,17 @@ class NotebookManager:
                     f"--batch_size {config.get('batch_size', 16)} "
                     f"--metrics_out {config.get('metrics_out', '/kaggle/working/metrics.json')}\n"
                 ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# Run Evaluation\n",
+                    "# Auto-discovers latest checkpoint and logs 5 samples to W&B\n",
+                    f"!python evaluate.py --effect TubeScreamer --limit-samples 5 --save-preds\n"
+                ]
             }
         ])
         

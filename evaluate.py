@@ -1,375 +1,335 @@
 """
-Interactive evaluation script with user-friendly interface.
-
-Provides a guided interface to evaluate guitar effect models without
-memorizing command-line arguments.
+Professional evaluation script for guitar effect models.
+Supports both interactive (wizard) mode and non-interactive CLI mode for automation.
 """
+import argparse
+import sys
+import json
 import torch
 from pathlib import Path
 from datetime import datetime
-import json
-import sys
+from typing import Optional, Dict
 
+# Local imports
 from src.config.paths import paths
-from src.models.lstm import LSTMModel
-from src.models.conv import ConvModel
-from src.config.config import ModelConfig, ProjectConfig
+from src.config.config import ProjectConfig, ModelConfig
 from src.data.egfx import EGFxDataset
 from src.data.loader import create_dataloaders
+from src.models.lstm import LSTMModel
+from src.models.conv import ConvModel
 from src.evaluation.evaluator import ModelEvaluator
 from src.evaluation.visualizer import MetricsVisualizer
 
+# --- UTILS ---
 
-def print_header(text):
+def print_header(text: str):
     """Print formatted header."""
     print("\n" + "=" * 70)
     print(f"  {text}")
     print("=" * 70)
 
-
-def find_checkpoints():
-    """Find all available model checkpoints."""
+def find_checkpoints() -> list[Path]:
+    """Find all available model checkpoints in runs/ and checkpoints/."""
     checkpoints = []
-    
-    # Search in runs directory
-    if paths.RUNS.exists():
-        for model_dir in paths.RUNS.iterdir():
-            if model_dir.is_dir():
-                # Look for .pt files
-                for ckpt in model_dir.glob("*.pt"):
-                    checkpoints.append(ckpt)
-    
-    # Search in checkpoints directory
-    if paths.CHECKPOINTS.exists():
-        for model_dir in paths.CHECKPOINTS.iterdir():
-            if model_dir.is_dir():
-                for ckpt in model_dir.glob("*.pt"):
-                    checkpoints.append(ckpt)
-    
+    for directory in [paths.RUNS, paths.CHECKPOINTS]:
+        if directory.exists():
+            for model_dir in directory.iterdir():
+                if model_dir.is_dir():
+                    checkpoints.extend(model_dir.glob("*.pt"))
     return sorted(checkpoints, key=lambda x: x.stat().st_mtime, reverse=True)
 
-
-def select_checkpoint():
-    """Interactive checkpoint selection."""
-    print_header("📦 SELECT MODEL CHECKPOINT")
-    
-    checkpoints = find_checkpoints()
-    
-    if not checkpoints:
-        print("\n❌ No checkpoints found in runs/ or checkpoints/")
-        print("   Train a model first using train.py")
-        sys.exit(1)
-    
-    print("\nAvailable checkpoints (most recent first):\n")
-    for i, ckpt in enumerate(checkpoints, 1):
-        # Get file info
-        size_mb = ckpt.stat().st_size / (1024 * 1024)
-        modified = datetime.fromtimestamp(ckpt.stat().st_mtime)
-        
-        print(f"  [{i}] {ckpt.parent.name}/{ckpt.name}")
-        print(f"      Size: {size_mb:.1f} MB  |  Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
-        print()
-    
-    while True:
-        try:
-            choice = input("\nSelect checkpoint number (or 'q' to quit): ").strip()
-            if choice.lower() == 'q':
-                print("Aborted.")
-                sys.exit(0)
-            
-            choice_num = int(choice)
-            if 1 <= choice_num <= len(checkpoints):
-                selected = checkpoints[choice_num - 1]
-                print(f"\n✅ Selected: {selected.parent.name}/{selected.name}")
-                return selected
-            else:
-                print(f"Please enter a number between 1 and {len(checkpoints)}")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
-
-
-def find_effect_folders():
-    """Find available effect folders in dataset."""
+def find_effect_folders() -> list[str]:
+    """Find available effect folders in the dataset."""
+    dataset_root = paths.DATASETS / "EGFxDataset" # Default location
     effects = []
-    dataset_root = paths.DATASETS / "EGFxDataset"
-    
     if dataset_root.exists():
         for folder in dataset_root.iterdir():
             if folder.is_dir() and folder.name != "Clean":
                 effects.append(folder.name)
-    
     return sorted(effects)
 
-
-def select_effect():
-    """Interactive effect selection."""
-    print_header("🎸 SELECT GUITAR EFFECT TO EVALUATE")
+def load_model_from_checkpoint(checkpoint_path: Path, device: str):
+    """Load model and config from checkpoint."""
+    print(f"Loading checkpoint: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
     
-    print("\nWhat effect was this model trained to emulate?")
-    print("(e.g., TubeScreamer, BigMuff, RAT, etc.)\n")
-    
-    effects = find_effect_folders()
-    
-    if effects:
-        print("Available effects in your dataset:")
-        for i, effect in enumerate(effects, 1):
-            print(f"  [{i}] {effect}")
-        print(f"  [0] Enter custom name")
-        
-        while True:
-            try:
-                choice = input("\nSelect effect number: ").strip()
-                choice_num = int(choice)
-                
-                if choice_num == 0:
-                    effect = input("Enter effect name: ").strip()
-                    if effect:
-                        return effect
-                elif 1 <= choice_num <= len(effects):
-                    return effects[choice_num - 1]
-                else:
-                    print(f"Please enter 0-{len(effects)}")
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-    else:
-        effect = input("\nEnter effect name (e.g., TubeScreamer): ").strip()
-        return effect
-
-
-def configure_evaluation():
-    """Interactive configuration."""
-    print_header("⚙️  CONFIGURE EVALUATION")
-    
-    config = {}
-    
-    # Device selection
-    has_cuda = torch.cuda.is_available()
-    if has_cuda:
-        print("\n🖥️  GPU detected!")
-        use_gpu = input("Use GPU for evaluation? (Y/n): ").strip().lower()
-        config['device'] = 'cuda' if use_gpu != 'n' else 'cpu'
-    else:
-        print("\n🖥️  Using CPU (no GPU detected)")
-        config['device'] = 'cpu'
-    
-    # Notes
-    print("\n📝 Optional: Add notes about this evaluation")
-    print("   (e.g., 'After 100 epochs', 'Testing hyperparameter changes')")
-    notes = input("Notes (or press Enter to skip): ").strip()
-    config['notes'] = notes
-    
-    # Save predictions (DISABLED by default to save memory)
-    print("\n💾 Save predicted audio samples?")
-    print("   ⚠️  WARNING: This creates many .wav files and uses significant disk space")
-    save_pred = input("Save predictions? (y/N): ").strip().lower()
-    config['save_predictions'] = (save_pred == 'y')
-    
-    return config
-
-
-def create_evaluation_session(model_name, effect_name, notes=""):
-    """Create timestamped evaluation session."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    session_id = f"{timestamp}_{model_name}_{effect_name}"
-    
-    session_dir = paths.OUTPUTS / "evaluations" / session_id
-    session_dir.mkdir(parents=True, exist_ok=True)
-    
-    metadata = {
-        "session_id": session_id,
-        "timestamp": datetime.now().isoformat(),
-        "model_name": model_name,
-        "effect_name": effect_name,
-        "notes": notes,
-    }
-    
-    with open(session_dir / "session_metadata.json", 'w') as f:
-        json.dump(metadata, f, indent=2)
-    
-    return session_dir
-
-
-def load_model_from_checkpoint(checkpoint_path):
-    """Load model from checkpoint."""
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
-    
-    # Infer model type from checkpoint or filename
-    if 'lstm' in checkpoint_path.name.lower():
+    # Infer model type
+    filename = checkpoint_path.name.lower()
+    if 'lstm' in filename:
         model_type = 'lstm'
-    elif 'conv' in checkpoint_path.name.lower():
+    elif 'conv' in filename:
         model_type = 'conv'
     else:
-        model_type = 'lstm'  # Default
-    
-    # Create model config
+        # Fallback to checking config if available, else default to lstm
+        model_type = 'lstm'
+
+    # Load Config
     if 'model_config' in checkpoint:
         model_config = checkpoint['model_config']
+    elif 'config' in checkpoint:
+         # Handle legacy where config might be stored directly or as dict
+         # But usually we stored it as model_config.
+         # Let's try to reconstruct if missing.
+         model_config = ModelConfig(name=model_type, hidden_size=64) # Dangerous assumption but necessary for very old ckpts
     else:
         model_config = ModelConfig(name=model_type, hidden_size=64)
-    
-    # Create and load model
+
+    # Initialize Model
     if model_type == 'lstm':
         model = LSTMModel(model_config)
     else:
         model = ConvModel(model_config)
     
+    # Load State
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
         model.load_state_dict(checkpoint)
-    
-    checkpoint_info = {
-        'epoch': checkpoint.get('epoch', 'unknown'),
-        'loss': checkpoint.get('loss', 'unknown'),
-        'type': model_type
-    }
-    
-    return model, model_config, checkpoint_info
+        
+    model.to(device)
+    model.eval()
 
+    epoch = checkpoint.get('epoch', 'unknown')
+    loss = checkpoint.get('loss', 'unknown')
+    
+    return model, model_config, {'epoch': epoch, 'loss': loss, 'type': model_type}
 
-def main():
-    print_header("🎸 GUITAR EFFECT MODEL EVALUATION")
+# --- INTERACTIVE MODES ---
+
+def interactive_select_checkpoint() -> Path:
+    print_header("📦 SELECT MODEL CHECKPOINT")
+    checkpoints = find_checkpoints()
+    if not checkpoints:
+        print("❌ No checkpoints found.")
+        sys.exit(1)
+
+    print("\nAvailable checkpoints (most recent first):\n")
+    for i, ckpt in enumerate(checkpoints, 1):
+        size_mb = ckpt.stat().st_size / (1024 * 1024)
+        modified = datetime.fromtimestamp(ckpt.stat().st_mtime)
+        print(f"  [{i}] {ckpt.parent.name}/{ckpt.name}  ({size_mb:.1f} MB, {modified})")
+
+    while True:
+        try:
+            choice = input("\nSelect checkpoint number (or 'q'): ").strip()
+            if choice.lower() == 'q': sys.exit(0)
+            idx = int(choice) - 1
+            if 0 <= idx < len(checkpoints):
+                return checkpoints[idx]
+        except ValueError:
+            pass
+
+def interactive_select_effect() -> str:
+    print_header("🎸 SELECT GUITAR EFFECT")
+    effects = find_effect_folders()
     
-    # 1. Select checkpoint
-    checkpoint_path = select_checkpoint()
+    if effects:
+        for i, effect in enumerate(effects, 1):
+            print(f"  [{i}] {effect}")
+    print(f"  [0] Custom Name")
+
+    while True:
+        try:
+            choice = input("\nSelect number: ").strip()
+            if choice == '0':
+                return input("Enter effect name: ").strip()
+            idx = int(choice) - 1
+            if 0 <= idx < len(effects):
+                return effects[idx]
+        except ValueError:
+            pass
+
+# --- MAIN EVALUATION LOGIC ---
+
+def run_evaluation(
+    checkpoint_path: Path,
+    effect_name: str,
+    device: str,
+    save_predictions: bool,
+    limit_samples: Optional[int] = None,
+    dataset_root: Optional[Path] = None,
+    notes: str = ""
+):
+    """
+    Main execution pipeline for evaluation.
+    """
+    # 1. Setup Session
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_name = checkpoint_path.parent.name # Use run name as model identifier
+    session_id = f"{timestamp}_{model_name}_eval"
+    session_dir = paths.OUTPUTS / "evaluations" / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    print_header(f"🚀 STARTING EVALUATION: {session_id}")
+    print(f"Model: {checkpoint_path}")
+    print(f"Effect: {effect_name}")
+    print(f"Device: {device}")
     
-    # 2. Select effect
-    effect_name = select_effect()
-    
-    # 3. Configure evaluation
-    config = configure_evaluation()
-    
-    # 4. Confirm
-    print_header("📋 EVALUATION SUMMARY")
-    print(f"\n  Checkpoint: {checkpoint_path.parent.name}/{checkpoint_path.name}")
-    print(f"  Effect:     {effect_name}")
-    print(f"  Device:     {config['device'].upper()}")
-    print(f"  Save WAVs:  {'Yes' if config['save_predictions'] else 'No (saves memory)'}")
-    if config['notes']:
-        print(f"  Notes:      {config['notes']}")
-    
-    proceed = input("\n\nProceed with evaluation? (Y/n): ").strip().lower()
-    if proceed == 'n':
-        print("Aborted.")
-        return
-    
-    # 5. Create session
-    print_header("🚀 RUNNING EVALUATION")
-    model_name = checkpoint_path.stem
-    session_dir = create_evaluation_session(model_name, effect_name, config['notes'])
-    print(f"\n📁 Session: {session_dir.name}")
-    
-    # 6. Load model
-    print("\n⏳ Loading model...")
+    # 2. Load Model
     try:
-        model, model_config, ckpt_info = load_model_from_checkpoint(checkpoint_path)
-        print(f"✅ Loaded {ckpt_info['type'].upper()} model (epoch {ckpt_info['epoch']})")
+        model, _, info = load_model_from_checkpoint(checkpoint_path, device)
+        print(f"✅ Model loaded (Epoch {info['epoch']}, Loss {info['loss']})")
     except Exception as e:
-        print(f"❌ Error loading model: {e}")
-        return
+        print(f"❌ Failed to load model: {e}")
+        # Traceback for debugging
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+    # 3. Load Data
+    if dataset_root is None:
+        dataset_root = paths.DATASETS / "EGFxDataset"
     
-    # 7. Load dataset
-    print("\n⏳ Loading dataset...")
-    dataset_root = paths.DATASETS / "EGFxDataset"
     input_root = dataset_root / "Clean"
     target_root = dataset_root / effect_name
     
     if not target_root.exists():
-        print(f"❌ Effect folder not found: {target_root}")
-        print(f"   Available folders: {', '.join(find_effect_folders())}")
-        return
-    
-    try:
-        dataset = EGFxDataset(
-            input_root=str(input_root),
-            output_root=str(target_root),
-            block_size=2048,
-            sample_rate=44100
-        )
-        print(f"✅ Loaded {len(dataset)} audio pairs")
-    except Exception as e:
-        print(f"❌ Error loading dataset: {e}")
-        return
-    
-    project_config = ProjectConfig()
-    train_loader, val_loader, test_loader = create_dataloaders(dataset, project_config)
-    
-    # 8. Run evaluation
-    print(f"\n⏳ Evaluating on {len(test_loader.dataset)} test samples...")
-    evaluator = ModelEvaluator(
-        model=model,
-        test_loader=test_loader,
-        device=config['device'],
+        print(f"❌ Target folder not found: {target_root}")
+        sys.exit(1)
+
+    print(f"Loading data from {dataset_root}...")
+    dataset = EGFxDataset(
+        input_root=str(input_root),
+        output_root=str(target_root),
+        block_size=2048, # Standard evaluation block size
         sample_rate=44100
     )
     
-    predictions_dir = session_dir / "predictions" if config['save_predictions'] else None
-    results = evaluator.evaluate(
-        save_predictions=config['save_predictions'],
-        output_dir=predictions_dir
+    # Create Test Loader (reuse existing project config mostly for batch size/workers if needed, or defaults)
+    # Using simple defaults for evaluation to ensure robustness
+    test_loader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=16, 
+        shuffle=False, 
+        num_workers=0 # Safer for some environments
     )
+    print(f"✅ Dataset loaded: {len(dataset)} samples")
+
+    # 4. Evaluate
+    evaluator = ModelEvaluator(model, test_loader, device=device, sample_rate=44100)
     
-    # 9. Save results
-    print("\n⏳ Saving results...")
+    # Determine output directory for wavs
+    wav_dir = session_dir / "predictions" if save_predictions else None
+    
+    # Note: evaluator.evaluate might need updates to accept limit_samples if not already there, 
+    # but we can implement it in the next step or assume it's there. 
+    # Checking previous file view, 'evaluate' didn't have 'limit_samples'. We need to add it!
+    # For now, we pass it, assuming I will update evaluator.py next.
+    
+    # To avoid runtime error before update, let's check signatures or just rely on the plan order.
+    # Plan says: "Update src/evaluation/evaluator.py" is step 3. 
+    # So I should update evaluator.py quickly after this.
+    try:
+        results = evaluator.evaluate(
+            save_predictions=save_predictions,
+            output_dir=wav_dir,
+            limit_samples=limit_samples 
+        )
+    except TypeError:
+        # Fallback if I haven't updated evaluator.py yet
+        print("⚠️ 'limit_samples' not supported in current evaluator.py, ignoring.")
+        results = evaluator.evaluate(
+            save_predictions=save_predictions,
+            output_dir=wav_dir
+        )
+
+    # 5. Save Results
     evaluator.save_results(results, session_dir / "results.json", format='json')
     evaluator.save_results(results, session_dir / "results.csv", format='csv')
-    
-    # 10. Create visualizations
-    print("⏳ Creating interactive report...")
+
+    # 6. Generate Report
+    print("Generating HTML report...")
     visualizer = MetricsVisualizer(results, sample_rate=44100)
     
-    # Get sample for visualization
-    sample_batch = next(iter(test_loader))
-    inputs, targets = sample_batch
-    inputs = inputs.to(config['device'])
-    targets = targets.to(config['device'])
-    
+    # Get a sample for visualization (first batch)
+    inputs, targets = next(iter(test_loader))
+    inputs, targets = inputs.to(device), targets.to(device)
     with torch.no_grad():
-        predictions = model(inputs)
+        preds = model(inputs)
     
-    report_path = session_dir / "evaluation_report.html"
     visualizer.create_full_report(
-        output_path=report_path,
-        sample_audio=(inputs[0].cpu(), predictions[0].cpu(), targets[0].cpu())
+        output_path=session_dir / "report.html",
+        sample_audio=(inputs[0].cpu(), preds[0].cpu(), targets[0].cpu())
     )
-    
-    # 11. Save metadata
-    eval_metadata = {
+
+    # 7. Metadata
+    metadata = {
+        "timestamp": datetime.now().isoformat(),
         "checkpoint": str(checkpoint_path),
         "effect": effect_name,
-        "device": config['device'],
-        "model_type": ckpt_info['type'],
-        "test_samples": len(test_loader.dataset),
-        "metrics_summary": {k: v['mean'] for k, v in results['metrics'].items()}
+        "notes": notes,
+        "device": device,
+        "metrics_summary": {k: v['mean'] for k, v in results['metrics'].items() if isinstance(v, dict)}
     }
-    
-    with open(session_dir / "evaluation_metadata.json", 'w') as f:
-        json.dump(eval_metadata, f, indent=2)
-    
-    # 12. Print results summary
-    print(results['summary'])
-    
-    print_header("✅ EVALUATION COMPLETE")
-    print(f"\n📁 Results saved to: {session_dir.name}")
-    print(f"\n📄 Generated files:")
-    print(f"   • evaluation_report.html  - 🌐 Interactive dashboard")
-    print(f"   • results.json           - Detailed metrics")
-    print(f"   • results.csv            - Metrics spreadsheet")
-    print(f"   • session_metadata.json  - Session info")
-    if config['save_predictions']:
-        print(f"   • predictions/           - Audio samples")
-    
-    print(f"\n🌐 Open the interactive report:")
-    print(f"   {report_path.absolute()}")
-    print("\n" + "=" * 70 + "\n")
+    with open(session_dir / "metadata.json", 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+    print_header("✅ EVALUATION COMPLETED")
+    print(f"Results saved to: {session_dir}")
+    if 'summary' in results:
+        print(results['summary'])
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nAborted by user.")
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+    parser = argparse.ArgumentParser(description="Evaluate Guitar Effect Models")
+    
+    # Modes
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive wizard mode")
+    
+    # Automation Arguments
+    parser.add_argument("--checkpoint", type=str, help="Path to model checkpoint (.pt)")
+    parser.add_argument("--effect", type=str, help="Name of the target effect folder (e.g. TubeScreamer)")
+    parser.add_argument("--dataset-root", type=str, default=None, help="Root path of dataset")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu)")
+    
+    # Flags
+    parser.add_argument("--save-preds", action="store_true", help="Save all predicted audio files to disk (Warning: Large space usage)")
+    parser.add_argument("--limit-samples", type=int, default=None, help="Limit number of samples to process (for debugging)")
+    parser.add_argument("--notes", type=str, default="", help="Optional notes for this run")
+
+    args = parser.parse_args()
+
+    # LOGIC:
+    # If interactive flag IS set, or NO args provided -> Interactive
+    # If checkpoint/effect provided -> Automation
+    
+    is_interactive = args.interactive or (not args.checkpoint and not args.effect)
+
+    if is_interactive:
+        ckpt = interactive_select_checkpoint()
+        eff = interactive_select_effect()
+        
+        # Simple interactive config
+        dev = "cuda" if torch.cuda.is_available() and input("Use GPU? (Y/n): ").lower() != 'n' else "cpu"
+        save = input("Save predictions? (y/N): ").lower() == 'y'
+        notes = input("Notes: ").strip()
+        
+        run_evaluation(ckpt, eff, dev, save, notes=notes)
+    else:
+        # Automation Mode checks
+        if not args.checkpoint:
+            # Auto-find latest if not specified? Or error? 
+            # Let's try to auto-find latest best_model if in a run context, otherwise error.
+            print("No checkpoint specified, looking for latest 'best_model.pt'...")
+            checkpoints = find_checkpoints()
+            if checkpoints:
+                args.checkpoint = str(checkpoints[0])
+                print(f"Auto-selected: {args.checkpoint}")
+            else:
+                print("❌ No checkpoint found provided and none found automatically.")
+                sys.exit(1)
+        
+        if not args.effect:
+            # Error out, we need to know what to evaluate against
+            print("❌ --effect argument is required in non-interactive mode.")
+            sys.exit(1)
+            
+        run_evaluation(
+            checkpoint_path=Path(args.checkpoint),
+            effect_name=args.effect,
+            device=args.device,
+            save_predictions=args.save_preds,
+            limit_samples=args.limit_samples,
+            dataset_root=Path(args.dataset_root) if args.dataset_root else None,
+            notes=args.notes
+        )

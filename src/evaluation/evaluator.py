@@ -46,7 +46,8 @@ class ModelEvaluator:
     def evaluate(
         self,
         save_predictions: bool = False,
-        output_dir: Optional[Path] = None
+        output_dir: Optional[Path] = None,
+        limit_samples: Optional[int] = None
     ) -> Dict:
         """
         Run evaluation on test set.
@@ -54,6 +55,7 @@ class ModelEvaluator:
         Args:
             save_predictions: Whether to save predicted audio samples
             output_dir: Directory to save predictions (required if save_predictions=True)
+            limit_samples: Optional limit on number of batches to process
         
         Returns:
             Dictionary containing:
@@ -69,18 +71,33 @@ class ModelEvaluator:
             output_dir.mkdir(parents=True, exist_ok=True)
         
         all_metrics = []
+        samples_processed = 0
+        
+        import torch
         
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(tqdm(self.test_loader, desc="Evaluating")):
+                # Check limits
+                if limit_samples and samples_processed >= limit_samples:
+                    break
+                    
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
                 
                 # Get predictions
                 predictions = self.model(inputs)
                 
+                # Sanity Check for NaNs/Inf in predictions
+                if torch.isnan(predictions).any() or torch.isinf(predictions).any():
+                    print(f"⚠️ Warning: NaNs or Infs detected in batch {batch_idx}. Replacing with zeros for metrics safety.")
+                    predictions = torch.nan_to_num(predictions, nan=0.0, posinf=1.0, neginf=-1.0)
+                
                 # Calculate metrics for each sample in batch
                 batch_size = inputs.shape[0]
                 for i in range(batch_size):
+                    if limit_samples and samples_processed >= limit_samples:
+                        break
+                        
                     pred_sample = predictions[i]
                     target_sample = targets[i]
                     
@@ -94,8 +111,17 @@ class ModelEvaluator:
                     
                     # Optionally save predictions
                     if save_predictions:
-                        sample_path = output_dir / f"sample_{metrics['sample_idx']:04d}_predicted.wav"
-                        self._save_audio(pred_sample.cpu(), sample_path)
+                        try:
+                            # Ensure we have valid audio before saving
+                            if torch.isnan(pred_sample).any():
+                                print(f"Skipping save for sample {metrics['sample_idx']} due to NaNs")
+                            else:
+                                sample_path = output_dir / f"sample_{metrics['sample_idx']:04d}_predicted.wav"
+                                self._save_audio(pred_sample.cpu(), sample_path)
+                        except Exception as e:
+                            print(f"Error saving audio sample {metrics['sample_idx']}: {e}")
+                    
+                    samples_processed += 1
         
         # Aggregate statistics
         aggregated = self._aggregate_metrics(all_metrics)
