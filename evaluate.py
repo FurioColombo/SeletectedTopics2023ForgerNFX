@@ -65,14 +65,47 @@ def load_model_from_checkpoint(checkpoint_path: Path, device: str):
 
     # Load Config
     if 'model_config' in checkpoint:
-        model_config = checkpoint['model_config']
+        # Pydantic model or dict
+        if isinstance(checkpoint['model_config'], dict):
+            model_config = ModelConfig(**checkpoint['model_config']) 
+        else:
+             model_config = checkpoint['model_config']
     elif 'config' in checkpoint:
          # Handle legacy where config might be stored directly or as dict
-         # But usually we stored it as model_config.
-         # Let's try to reconstruct if missing.
-         model_config = ModelConfig(name=model_type, hidden_size=64) # Dangerous assumption but necessary for very old ckpts
+         raw_config = checkpoint['config']
+         if isinstance(raw_config, dict):
+             # Extract model part if nested
+             if 'model' in raw_config:
+                 model_config = ModelConfig(**raw_config['model'])
+             else:
+                 model_config = ModelConfig(**raw_config)
+         else:
+             # Assume it's a Config object
+             model_config = raw_config.model if hasattr(raw_config, 'model') else raw_config
     else:
-        model_config = ModelConfig(name=model_type, hidden_size=64)
+        # Last Resort: Infer from state_dict shapes
+        # LSTM Weight shape: (4 * hidden_size, input_size) or similar
+        print("⚠️ Config not found in checkpoint. Attempting to infer hyperparameters from state_dict...")
+        
+        state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+        
+        if model_type == 'lstm':
+            # Check 'lstm.weight_ih_l0' or similar
+            # weight_ih_l0 shape is (4*hidden_size, input_size)
+            # weight_hh_l0 shape is (4*hidden_size, hidden_size)
+            keys = [k for k in state_dict.keys() if 'weight_hh_l0' in k]
+            if keys:
+                weight_hh = state_dict[keys[0]]
+                # shape is [4*hidden, hidden]
+                # So rows = 4 * cols
+                hidden_size_inferred = weight_hh.shape[1]
+                print(f"💡 Inferred LSTM hidden_size: {hidden_size_inferred}")
+                model_config = ModelConfig(name='lstm', hidden_size=hidden_size_inferred)
+            else:
+                print("❌ Could not infer LSTM dimensions. Defaulting to 64.")
+                model_config = ModelConfig(name='lstm', hidden_size=64)
+        else:
+             model_config = ModelConfig(name='conv', hidden_size=64) # Harder to infer generic conv without clear structure
 
     # Initialize Model
     if model_type == 'lstm':
@@ -82,7 +115,28 @@ def load_model_from_checkpoint(checkpoint_path: Path, device: str):
     
     # Load State
     if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
+        try:
+            model.load_state_dict(checkpoint['model_state_dict'])
+        except RuntimeError as e:
+            # Second Chance: Re-attempt inference if mismatch occurred despite config
+            print(f"⚠️ Model architecture mismatch: {e}")
+            if model_type == 'lstm':
+                state_dict = checkpoint['model_state_dict']
+                keys = [k for k in state_dict.keys() if 'weight_hh_l0' in k]
+                if keys:
+                     weight_hh = state_dict[keys[0]]
+                     hidden_size_inferred = weight_hh.shape[1]
+                     if hidden_size_inferred != model_config.hidden_size:
+                         print(f"🔄 Retrying with inferred hidden_size: {hidden_size_inferred}")
+                         model_config.hidden_size = hidden_size_inferred
+                         model = LSTMModel(model_config)
+                         model.load_state_dict(state_dict)
+                     else:
+                         raise e
+                else:
+                    raise e
+            else:
+                raise e
     else:
         model.load_state_dict(checkpoint)
         
