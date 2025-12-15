@@ -67,10 +67,10 @@ class Trainer:
 
             total_loss += loss.item()
             
-            # Print status every 10% or so to avoid spam
-            if batch_idx % max(1, len(self.train_loader) // 10) == 0:
+            # Print status every 1000 batches to avoid spam
+            if batch_idx % 1000 == 0:
                 current_lr = self.optimizer.param_groups[0]['lr']
-                print(f"  Batch {batch_idx}/{len(self.train_loader)} - Loss: {loss.item():.6f} - LR: {current_lr:.2e}")
+                print(f"  Batch {batch_idx}/{len(self.train_loader)} - Loss: {loss.item():.3f} - LR: {current_lr:.2e}")
             
         return total_loss / len(self.train_loader)
         
@@ -79,9 +79,9 @@ class Trainer:
         total_loss = 0.0
         extra_losses = {name: 0.0 for name in self.validation_loss_fns}
         
-        pbar = tqdm(self.val_loader, desc="Validation", leave=False, mininterval=5.0)
+        # pbar = tqdm(self.val_loader, desc="Validation", leave=False, mininterval=5.0)
         with torch.no_grad():
-            for x, y in pbar:
+            for batch_idx, (x, y) in enumerate(self.val_loader):
                 x, y = x.to(self.device), y.to(self.device)
                 pred = self.model(x)
                 
@@ -94,7 +94,7 @@ class Trainer:
                     extra_loss = fn(pred, y)
                     extra_losses[name] += extra_loss.item()
                 
-                pbar.set_postfix({'loss': f'{loss.item():.6f}'})
+                # pbar.set_postfix({'loss': f'{loss.item():.6f}'})
                 
         avg_loss = total_loss / len(self.val_loader)
         avg_extras = {name: val / len(self.val_loader) for name, val in extra_losses.items()}

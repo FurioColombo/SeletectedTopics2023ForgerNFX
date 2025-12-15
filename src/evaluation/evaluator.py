@@ -72,6 +72,7 @@ class ModelEvaluator:
         
         all_metrics = []
         audio_samples = []
+        samples_processed = 0
         
         import torch
         
