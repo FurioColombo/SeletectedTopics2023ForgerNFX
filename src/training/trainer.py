@@ -50,8 +50,10 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         
-        pbar = tqdm(self.train_loader, desc="Training", leave=False, mininterval=10.0)
-        for batch_idx, (x, y) in enumerate(pbar):
+        # Custom printer for Kaggle transparency without spam
+        # pbar = tqdm(self.train_loader, desc="Training", leave=False, mininterval=10.0) 
+        
+        for batch_idx, (x, y) in enumerate(self.train_loader):
             x, y = x.to(self.device), y.to(self.device)
             
             self.optimizer.zero_grad()
@@ -65,12 +67,10 @@ class Trainer:
 
             total_loss += loss.item()
             
-            # Update pbar with current LR
-            current_lr = self.optimizer.param_groups[0]['lr']
-            pbar.set_postfix({
-                'loss': f'{loss.item():.6f}',
-                'lr': f'{current_lr:.2e}'
-            })
+            # Print status every 10% or so to avoid spam
+            if batch_idx % max(1, len(self.train_loader) // 10) == 0:
+                current_lr = self.optimizer.param_groups[0]['lr']
+                print(f"  Batch {batch_idx}/{len(self.train_loader)} - Loss: {loss.item():.6f} - LR: {current_lr:.2e}")
             
         return total_loss / len(self.train_loader)
         

@@ -87,7 +87,7 @@ class NotebookManager:
                 "source": [
                     f"!git clone --branch {repo_branch} --single-branch " + repo_url + " /kaggle/working/repo\n",
                     "%cd /kaggle/working/repo\n",
-                    "!pip install -r requirements.txt\n"
+                    "!pip install -q -r requirements.txt\n"
                 ]
             },
             {

@@ -19,6 +19,7 @@ from src.models.lstm import LSTMModel
 from src.models.conv import ConvModel
 from src.evaluation.evaluator import ModelEvaluator
 from src.evaluation.visualizer import MetricsVisualizer
+import wandb
 
 # --- UTILS ---
 
@@ -290,6 +291,58 @@ def run_evaluation(
     # 5. Save Results
     evaluator.save_results(results, session_dir / "results.json", format='json')
     evaluator.save_results(results, session_dir / "results.csv", format='csv')
+
+    # 5b. Log to W&B
+    # Try to get API key from env or auth, fail gracefully
+    try:
+        wandb_run_name = f"eval_{model_name}_{timestamp}"
+        wandb.init(
+             project="forger-nfx",
+             name=wandb_run_name,
+             tags=["evaluation"],
+             config={
+                 "model": str(checkpoint_path),
+                 "effect": effect_name,
+                 "device": device
+             }
+        )
+        
+        # Log Aggregated Metrics
+        wandb_metrics = {}
+        for k, v in results['metrics'].items():
+             if isinstance(v, dict) and 'mean' in v:
+                 wandb_metrics[f"test/{k}"] = v['mean']
+        wandb.log(wandb_metrics)
+        
+        # Log Audio Samples Table
+        if 'audio_samples' in results and results['audio_samples']:
+            print("📤 Logging audio samples to W&B...")
+            columns = ["id", "input", "target", "prediction"]
+            table = wandb.Table(columns=columns)
+            
+            sample_rate = 44100 # Default
+            
+            for sample in results['audio_samples']:
+                # sample keys: idx, input, target, prediction (tensors on cpu)
+                # Convert to numpy and flatten (assuming mono)
+                idx = sample['idx']
+                inp = sample['input'].numpy().flatten()
+                tgt = sample['target'].numpy().flatten()
+                pred = sample['prediction'].numpy().flatten()
+                
+                wb_inp = wandb.Audio(inp, sample_rate=sample_rate, caption=f"Input {idx}")
+                wb_tgt = wandb.Audio(tgt, sample_rate=sample_rate, caption=f"Target {idx}")
+                wb_pred = wandb.Audio(pred, sample_rate=sample_rate, caption=f"Pred {idx}")
+                
+                table.add_data(idx, wb_inp, wb_tgt, wb_pred)
+            
+            wandb.log({"evaluation_samples": table})
+            print("✅ W&B logging complete.")
+            
+        wandb.finish()
+            
+    except Exception as e:
+        print(f"⚠️ W&B logging failed: {e}")
 
     # 6. Generate Report
     print("Generating HTML report...")

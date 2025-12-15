@@ -71,7 +71,7 @@ class ModelEvaluator:
             output_dir.mkdir(parents=True, exist_ok=True)
         
         all_metrics = []
-        samples_processed = 0
+        audio_samples = []
         
         import torch
         
@@ -100,7 +100,17 @@ class ModelEvaluator:
                         
                     pred_sample = predictions[i]
                     target_sample = targets[i]
+                    input_sample = inputs[i]
                     
+                    # Store first 5 samples for W&B logging
+                    if len(audio_samples) < 5:
+                        audio_samples.append({
+                            'idx': batch_idx * batch_size + i,
+                            'input': input_sample.cpu(),
+                            'target': target_sample.cpu(),
+                            'prediction': pred_sample.cpu()
+                        })
+
                     metrics = calculate_all_metrics(
                         pred_sample,
                         target_sample,
@@ -132,6 +142,7 @@ class ModelEvaluator:
         return {
             'metrics': aggregated,
             'per_sample_metrics': all_metrics,
+            'audio_samples': audio_samples,
             'summary': summary
         }
     
