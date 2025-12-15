@@ -1,442 +1,142 @@
-"""
-Professional evaluation script for guitar effect models.
-Supports both interactive (wizard) mode and non-interactive CLI mode for automation.
-"""
 import argparse
-import sys
-import json
 import torch
 from pathlib import Path
+import yaml
+import wandb
+import sys
 from datetime import datetime
-from typing import Optional, Dict
 
-# Local imports
-from src.config.paths import paths
-from src.config.config import ProjectConfig, ModelConfig
-from src.data.egfx import EGFxDataset
-from src.data.loader import create_dataloaders
 from src.models.lstm import LSTMModel
 from src.models.conv import ConvModel
-from src.evaluation.evaluator import ModelEvaluator
+from src.data.egfx import EGFxDataset
+from src.inference.runners import SegmentRunner, SequenceRunner
+from src.evaluation.analyzer import MetricAnalyzer
 from src.evaluation.visualizer import MetricsVisualizer
-import wandb
 
-# --- UTILS ---
-
-def print_header(text: str):
-    """Print formatted header."""
-    print("\n" + "=" * 70)
-    print(f"  {text}")
-    print("=" * 70)
-
-def find_checkpoints() -> list[Path]:
-    """Find all available model checkpoints in runs/ and checkpoints/."""
-    checkpoints = []
-    for directory in [paths.RUNS, paths.CHECKPOINTS]:
-        if directory.exists():
-            for model_dir in directory.iterdir():
-                if model_dir.is_dir():
-                    checkpoints.extend(model_dir.glob("*.pt"))
-    return sorted(checkpoints, key=lambda x: x.stat().st_mtime, reverse=True)
-
-def find_effect_folders() -> list[str]:
-    """Find available effect folders in the dataset."""
-    dataset_root = paths.DATASETS / "EGFxDataset" # Default location
-    effects = []
-    if dataset_root.exists():
-        for folder in dataset_root.iterdir():
-            if folder.is_dir() and folder.name != "Clean":
-                effects.append(folder.name)
-    return sorted(effects)
-
-def load_model_from_checkpoint(checkpoint_path: Path, device: str):
-    """Load model and config from checkpoint."""
-    print(f"Loading checkpoint: {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    
-    # Infer model type
-    filename = checkpoint_path.name.lower()
-    if 'lstm' in filename:
-        model_type = 'lstm'
-    elif 'conv' in filename:
-        model_type = 'conv'
-    else:
-        # Fallback to checking config if available, else default to lstm
-        model_type = 'lstm'
-
-    # Load Config
-    if 'model_config' in checkpoint:
-        # Pydantic model or dict
-        if isinstance(checkpoint['model_config'], dict):
-            model_config = ModelConfig(**checkpoint['model_config']) 
-        else:
-             model_config = checkpoint['model_config']
-    elif 'config' in checkpoint:
-         # Handle legacy where config might be stored directly or as dict
-         raw_config = checkpoint['config']
-         if isinstance(raw_config, dict):
-             # Extract model part if nested
-             if 'model' in raw_config:
-                 model_config = ModelConfig(**raw_config['model'])
-             else:
-                 model_config = ModelConfig(**raw_config)
-         else:
-             # Assume it's a Config object
-             model_config = raw_config.model if hasattr(raw_config, 'model') else raw_config
-    else:
-        # Last Resort: Infer from state_dict shapes
-        # LSTM Weight shape: (4 * hidden_size, input_size) or similar
-        print("⚠️ Config not found in checkpoint. Attempting to infer hyperparameters from state_dict...")
-        
-        state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
-        
-        if model_type == 'lstm':
-            # Check 'lstm.weight_ih_l0' or similar
-            # weight_ih_l0 shape is (4*hidden_size, input_size)
-            # weight_hh_l0 shape is (4*hidden_size, hidden_size)
-            keys = [k for k in state_dict.keys() if 'weight_hh_l0' in k]
-            if keys:
-                weight_hh = state_dict[keys[0]]
-                # shape is [4*hidden, hidden]
-                # So rows = 4 * cols
-                hidden_size_inferred = weight_hh.shape[1]
-                print(f"💡 Inferred LSTM hidden_size: {hidden_size_inferred}")
-                model_config = ModelConfig(name='lstm', hidden_size=hidden_size_inferred)
-            else:
-                print("❌ Could not infer LSTM dimensions. Defaulting to 64.")
-                model_config = ModelConfig(name='lstm', hidden_size=64)
-        else:
-             model_config = ModelConfig(name='conv', hidden_size=64) # Harder to infer generic conv without clear structure
-
-    # Initialize Model
-    if model_type == 'lstm':
-        model = LSTMModel(model_config)
-    else:
-        model = ConvModel(model_config)
-    
-    # Load State
-    if 'model_state_dict' in checkpoint:
-        try:
-            model.load_state_dict(checkpoint['model_state_dict'])
-        except RuntimeError as e:
-            # Second Chance: Re-attempt inference if mismatch occurred despite config
-            print(f"⚠️ Model architecture mismatch: {e}")
-            if model_type == 'lstm':
-                state_dict = checkpoint['model_state_dict']
-                keys = [k for k in state_dict.keys() if 'weight_hh_l0' in k]
-                if keys:
-                     weight_hh = state_dict[keys[0]]
-                     hidden_size_inferred = weight_hh.shape[1]
-                     if hidden_size_inferred != model_config.hidden_size:
-                         print(f"🔄 Retrying with inferred hidden_size: {hidden_size_inferred}")
-                         model_config.hidden_size = hidden_size_inferred
-                         model = LSTMModel(model_config)
-                         model.load_state_dict(state_dict)
-                     else:
-                         raise e
-                else:
-                    raise e
-            else:
-                raise e
-    else:
-        model.load_state_dict(checkpoint)
-        
-    model.to(device)
-    model.eval()
-
-    epoch = checkpoint.get('epoch', 'unknown')
-    loss = checkpoint.get('loss', 'unknown')
-    
-    return model, model_config, {'epoch': epoch, 'loss': loss, 'type': model_type}
-
-# --- INTERACTIVE MODES ---
-
-def interactive_select_checkpoint() -> Path:
-    print_header("📦 SELECT MODEL CHECKPOINT")
-    checkpoints = find_checkpoints()
-    if not checkpoints:
-        print("❌ No checkpoints found.")
-        sys.exit(1)
-
-    print("\nAvailable checkpoints (most recent first):\n")
-    for i, ckpt in enumerate(checkpoints, 1):
-        size_mb = ckpt.stat().st_size / (1024 * 1024)
-        modified = datetime.fromtimestamp(ckpt.stat().st_mtime)
-        print(f"  [{i}] {ckpt.parent.name}/{ckpt.name}  ({size_mb:.1f} MB, {modified})")
-
-    while True:
-        try:
-            choice = input("\nSelect checkpoint number (or 'q'): ").strip()
-            if choice.lower() == 'q': sys.exit(0)
-            idx = int(choice) - 1
-            if 0 <= idx < len(checkpoints):
-                return checkpoints[idx]
-        except ValueError:
-            pass
-
-def interactive_select_effect() -> str:
-    print_header("🎸 SELECT GUITAR EFFECT")
-    effects = find_effect_folders()
-    
-    if effects:
-        for i, effect in enumerate(effects, 1):
-            print(f"  [{i}] {effect}")
-    print(f"  [0] Custom Name")
-
-    while True:
-        try:
-            choice = input("\nSelect number: ").strip()
-            if choice == '0':
-                return input("Enter effect name: ").strip()
-            idx = int(choice) - 1
-            if 0 <= idx < len(effects):
-                return effects[idx]
-        except ValueError:
-            pass
-
-# --- MAIN EVALUATION LOGIC ---
+def load_config(path: str):
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
 
 def run_evaluation(
     checkpoint_path: Path,
+    dataset_root: Path,
     effect_name: str,
-    device: str,
-    save_predictions: bool,
-    limit_samples: Optional[int] = None,
-    dataset_root: Optional[Path] = None,
-    notes: str = ""
+    output_dir: Path,
+    device: str = "cpu",
+    limit_samples: int = None,
+    save_preds: bool = False
 ):
-    """
-    Main execution pipeline for evaluation.
-    """
-    # 1. Setup Session
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = checkpoint_path.parent.name # Use run name as model identifier
-    session_id = f"{timestamp}_{model_name}_eval"
-    session_dir = paths.OUTPUTS / "evaluations" / session_id
-    session_dir.mkdir(parents=True, exist_ok=True)
-
-    print_header(f"🚀 STARTING EVALUATION: {session_id}")
+    print(f"\n🚀 STARTING MODULAR EVALUATION")
     print(f"Model: {checkpoint_path}")
-    print(f"Effect: {effect_name}")
-    print(f"Device: {device}")
+    print(f"Dataset: {dataset_root}")
     
-    # 2. Load Model
-    try:
-        model, _, info = load_model_from_checkpoint(checkpoint_path, device)
-        print(f"✅ Model loaded (Epoch {info['epoch']}, Loss {info['loss']})")
-    except Exception as e:
-        print(f"❌ Failed to load model: {e}")
-        # Traceback for debugging
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
-    # 3. Load Data
-    if dataset_root is None:
-        dataset_root = paths.DATASETS / "EGFxDataset"
+    # 1. Load Model
+    print("Loading model...")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
     
-    input_root = dataset_root / "Clean"
-    target_root = dataset_root / effect_name
+    # Infer architecture
+    if 'conv' in str(checkpoint_path).lower():
+         model = ConvModel() # Default/Placeholder logic
+    else:
+        # Robust load for LSTM
+        state_dict = checkpoint.get('state_dict', checkpoint)
+        hidden_size = 16 # fallback
+        if 'lstm.weight_hh_l0' in state_dict:
+            hidden_size = state_dict['lstm.weight_hh_l0'].shape[1]
+        model = LSTMModel(hidden_size=hidden_size)
+        
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
     
-    if not target_root.exists():
-        print(f"❌ Target folder not found: {target_root}")
-        sys.exit(1)
-
-    print(f"Loading data from {dataset_root}...")
+    # 2. Setup Data
+    input_root = dataset_root / effect_name / "Train" # Use Train for now or Test if split
+    # Note: Kaggle dataset structure might differ. Assuming standard EGFx structure.
+    # If explicit paths needed, user can adjust.
+    # Actually, let's use the provided root.
+    
+    # 3. PHASE 1: Quantitative (Segments)
+    print("\n📊 Phase 1: Quantitative Evaluation (Segments)")
     dataset = EGFxDataset(
-        input_root=str(input_root),
-        output_root=str(target_root),
-        block_size=2048, # Standard evaluation block size
-        sample_rate=44100
+        input_root=str(dataset_root / effect_name / "Train"), # Or Test
+        output_root=str(dataset_root / effect_name / "Target"),
+        block_size=2048
     )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, num_workers=2)
     
-    # Create Test Loader (reuse existing project config mostly for batch size/workers if needed, or defaults)
-    # Using simple defaults for evaluation to ensure robustness
-    test_loader = torch.utils.data.DataLoader(
-        dataset, 
-        batch_size=16, 
-        shuffle=False, 
-        num_workers=0 # Safer for some environments
-    )
-    print(f"✅ Dataset loaded: {len(dataset)} samples")
-
-    # 4. Evaluate
-    evaluator = ModelEvaluator(model, test_loader, device=device, sample_rate=44100)
+    analyzer = MetricAnalyzer()
+    seg_runner = SegmentRunner(model, dataloader, device, limit_batches=(limit_samples//32 if limit_samples else None))
     
-    # Determine output directory for wavs
-    wav_dir = session_dir / "predictions" if save_predictions else None
+    for batch_res in seg_runner.run():
+        analyzer.process_batch(batch_res)
+        
+    quantitative_results = analyzer.get_aggregated_results()
+    print(analyzer.generate_summary())
     
-    # Note: evaluator.evaluate might need updates to accept limit_samples if not already there, 
-    # but we can implement it in the next step or assume it's there. 
-    # Checking previous file view, 'evaluate' didn't have 'limit_samples'. We need to add it!
-    # For now, we pass it, assuming I will update evaluator.py next.
+    # 4. PHASE 2: Qualitative (Full Sequences)
+    print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
+    # Find a few test files
+    train_dir = dataset_root / effect_name / "Train"
+    target_dir = dataset_root / effect_name / "Target"
+    all_files = list(train_dir.glob("*.wav"))
+    test_files = all_files[:3] # process first 3 files fully
     
-    # To avoid runtime error before update, let's check signatures or just rely on the plan order.
-    # Plan says: "Update src/evaluation/evaluator.py" is step 3. 
-    # So I should update evaluator.py quickly after this.
-    try:
-        results = evaluator.evaluate(
-            save_predictions=save_predictions,
-            output_dir=wav_dir,
-            limit_samples=limit_samples 
-        )
-    except TypeError:
-        # Fallback if I haven't updated evaluator.py yet
-        print("⚠️ 'limit_samples' not supported in current evaluator.py, ignoring.")
-        results = evaluator.evaluate(
-            save_predictions=save_predictions,
-            output_dir=wav_dir
-        )
-
-    # 5. Save Results
-    evaluator.save_results(results, session_dir / "results.json", format='json')
-    evaluator.save_results(results, session_dir / "results.csv", format='csv')
-
-    # 5b. Log to W&B
-    # Try to get API key from env or auth, fail gracefully
-    try:
-        wandb_run_name = f"eval_{model_name}_{timestamp}"
-        wandb.init(
-             project="forger-nfx",
-             name=wandb_run_name,
-             tags=["evaluation"],
-             config={
-                 "model": str(checkpoint_path),
-                 "effect": effect_name,
-                 "device": device
-             }
+    file_pairs = [(f, target_dir / f.name) for f in test_files if (target_dir / f.name).exists()]
+    
+    seq_runner = SequenceRunner(model, file_pairs, device=device)
+    visualizer = MetricsVisualizer(quantitative_results) # Init with quant results
+    
+    # W&B Init
+    wandb.init(project="forger-nfx", tags=["modular-eval"], name=f"eval_{effect_name}_{datetime.now().strftime('%H%M')}")
+    wandb.log(quantitative_results['metrics']) # Log scalar metrics
+    
+    audio_table = wandb.Table(columns=["name", "input", "target", "prediction", "spectrogram_overlap"])
+    
+    for seq_res in seq_runner.run():
+        name = seq_res['name']
+        print(f"  Processing {name}...")
+        
+        # Save WAVs
+        if save_preds:
+            (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
+            import torchaudio
+            torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", seq_res['prediction'].unsqueeze(0), seq_res['sample_rate'])
+        
+        # Visualize
+        fig_overlap = visualizer.plot_spectral_overlap(
+            seq_res['input'], seq_res['prediction'], seq_res['target']
         )
         
-        # Log Aggregated Metrics
-        wandb_metrics = {}
-        for k, v in results['metrics'].items():
-             if isinstance(v, dict) and 'mean' in v:
-                 wandb_metrics[f"test/{k}"] = v['mean']
-        wandb.log(wandb_metrics)
+        # Log to W&B
+        audio_table.add_data(
+            name,
+            wandb.Audio(seq_res['input'].numpy(), sample_rate=seq_res['sample_rate']),
+            wandb.Audio(seq_res['target'].numpy(), sample_rate=seq_res['sample_rate']),
+            wandb.Audio(seq_res['prediction'].numpy(), sample_rate=seq_res['sample_rate']),
+            wandb.Html(fig_overlap.to_html(include_plotlyjs='cdn'))
+        )
         
-        # Log Audio Samples Table
-        if 'audio_samples' in results and results['audio_samples']:
-            print("📤 Logging audio samples to W&B...")
-            columns = ["id", "input", "target", "prediction"]
-            table = wandb.Table(columns=columns)
-            
-            sample_rate = 44100 # Default
-            
-            for sample in results['audio_samples']:
-                # sample keys: idx, input, target, prediction (tensors on cpu)
-                # Convert to numpy and flatten (assuming mono)
-                idx = sample['idx']
-                inp = sample['input'].numpy().flatten()
-                tgt = sample['target'].numpy().flatten()
-                pred = sample['prediction'].numpy().flatten()
-                
-                wb_inp = wandb.Audio(inp, sample_rate=sample_rate, caption=f"Input {idx}")
-                wb_tgt = wandb.Audio(tgt, sample_rate=sample_rate, caption=f"Target {idx}")
-                wb_pred = wandb.Audio(pred, sample_rate=sample_rate, caption=f"Pred {idx}")
-                
-                table.add_data(idx, wb_inp, wb_tgt, wb_pred)
-            
-            wandb.log({"evaluation_samples": table})
-            print("✅ W&B logging complete.")
-            
-        wandb.finish()
-            
-    except Exception as e:
-        print(f"⚠️ W&B logging failed: {e}")
-
-    # 6. Generate Report
-    print("Generating HTML report...")
-    visualizer = MetricsVisualizer(results, sample_rate=44100)
+    wandb.log({"qualitative_analysis": audio_table})
+    wandb.finish()
     
-    # Get a sample for visualization (first batch)
-    inputs, targets = next(iter(test_loader))
-    inputs, targets = inputs.to(device), targets.to(device)
-    with torch.no_grad():
-        preds = model(inputs)
-    
-    visualizer.create_full_report(
-        output_path=session_dir / "report.html",
-        sample_audio=(inputs[0].cpu(), preds[0].cpu(), targets[0].cpu())
-    )
-
-    # 7. Metadata
-    metadata = {
-        "timestamp": datetime.now().isoformat(),
-        "checkpoint": str(checkpoint_path),
-        "effect": effect_name,
-        "notes": notes,
-        "device": device,
-        "metrics_summary": {k: v['mean'] for k, v in results['metrics'].items() if isinstance(v, dict)}
-    }
-    with open(session_dir / "metadata.json", 'w') as f:
-        json.dump(metadata, f, indent=2)
-
-    print_header("✅ EVALUATION COMPLETED")
-    print(f"Results saved to: {session_dir}")
-    if 'summary' in results:
-        print(results['summary'])
-
+    print("\n✅ Evaluation Complete.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate Guitar Effect Models")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", type=str, required=True)
+    parser.add_argument("--effect", type=str, required=True)
+    parser.add_argument("--dataset-root", type=str, required=True)
+    parser.add_argument("--save-preds", action="store_true")
+    parser.add_argument("--limit-samples", type=int, default=100)
     
-    # Modes
-    parser.add_argument("--interactive", action="store_true", help="Run in interactive wizard mode")
-    
-    # Automation Arguments
-    parser.add_argument("--checkpoint", type=str, help="Path to model checkpoint (.pt)")
-    parser.add_argument("--effect", type=str, help="Name of the target effect folder (e.g. TubeScreamer)")
-    parser.add_argument("--dataset-root", type=str, default=None, help="Root path of dataset")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu)")
-    
-    # Flags
-    parser.add_argument("--save-preds", action="store_true", help="Save all predicted audio files to disk (Warning: Large space usage)")
-    parser.add_argument("--limit-samples", type=int, default=None, help="Limit number of samples to process (for debugging)")
-    parser.add_argument("--notes", type=str, default="", help="Optional notes for this run")
-
     args = parser.parse_args()
-
-    # LOGIC:
-    # If interactive flag IS set, or NO args provided -> Interactive
-    # If checkpoint/effect provided -> Automation
     
-    is_interactive = args.interactive or (not args.checkpoint and not args.effect)
-
-    if is_interactive:
-        ckpt = interactive_select_checkpoint()
-        eff = interactive_select_effect()
-        
-        # Simple interactive config
-        dev = "cuda" if torch.cuda.is_available() and input("Use GPU? (Y/n): ").lower() != 'n' else "cpu"
-        save = input("Save predictions? (y/N): ").lower() == 'y'
-        notes = input("Notes: ").strip()
-        
-        run_evaluation(ckpt, eff, dev, save, notes=notes)
-    else:
-        # Automation Mode checks
-        if not args.checkpoint:
-            # Auto-find latest if not specified? Or error? 
-            # Let's try to auto-find latest best_model if in a run context, otherwise error.
-            print("No checkpoint specified, looking for latest 'best_model.pt'...")
-            checkpoints = find_checkpoints()
-            if checkpoints:
-                args.checkpoint = str(checkpoints[0])
-                print(f"Auto-selected: {args.checkpoint}")
-            else:
-                print("❌ No checkpoint found provided and none found automatically.")
-                sys.exit(1)
-        
-        if not args.effect:
-            # Error out, we need to know what to evaluate against
-            print("❌ --effect argument is required in non-interactive mode.")
-            sys.exit(1)
-            
-        run_evaluation(
-            checkpoint_path=Path(args.checkpoint),
-            effect_name=args.effect,
-            device=args.device,
-            save_predictions=args.save_preds,
-            limit_samples=args.limit_samples,
-            dataset_root=Path(args.dataset_root) if args.dataset_root else None,
-            notes=args.notes
-        )
+    run_evaluation(
+        Path(args.checkpoint),
+        Path(args.dataset_root),
+        args.effect,
+        Path("evaluation_outputs"),
+        limit_samples=args.limit_samples,
+        save_preds=args.save_preds,
+        device="cuda" if torch.cuda.is_available() else "cpu"
+    )

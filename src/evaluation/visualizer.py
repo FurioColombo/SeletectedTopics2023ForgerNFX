@@ -305,8 +305,55 @@ class MetricsVisualizer:
             target_audio: Target waveform
         
         Returns:
-            Plotly figure
+    def plot_spectral_overlap(
+        self,
+        input_audio: torch.Tensor,
+        predicted_audio: torch.Tensor,
+        target_audio: torch.Tensor,
+        n_fft: int = 2048
+    ) -> go.Figure:
         """
+        Plot overlapping frequency analysis of Input, Target, and Prediction.
+        Shows how well the model approximates the target spectrum compared to clean input.
+        """
+        def get_mag_db(audio):
+            # Compute PSD or fast approx
+            fft = torch.fft.rfft(audio.flatten())
+            mag_db = 20 * np.log10(np.abs(fft.cpu().numpy()) + 1e-8)
+            freqs = np.fft.rfftfreq(len(audio.flatten()), 1/self.sample_rate)
+            return freqs, mag_db
+
+        input_freqs, input_db = get_mag_db(input_audio)
+        target_freqs, target_db = get_mag_db(target_audio)
+        pred_freqs, pred_db = get_mag_db(predicted_audio)
+        
+        # Smoothen curves slightly for readability if dense? 
+        # For now raw.
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=input_freqs, y=input_db,
+            name='Clean Input', line=dict(color='gray', width=1), opacity=0.5
+        ))
+        fig.add_trace(go.Scatter(
+            x=target_freqs, y=target_db,
+            name='Target (Reference)', line=dict(color='green', width=2), opacity=0.8
+        ))
+        fig.add_trace(go.Scatter(
+            x=pred_freqs, y=pred_db,
+            name='Prediction', line=dict(color='blue', width=2, dash='dash'), opacity=0.9
+        ))
+        
+        fig.update_layout(
+            title='Spectral Overlap Analysis',
+            xaxis_title='Frequency (Hz)',
+            yaxis_title='Magnitude (dB)',
+            xaxis_type='log',
+            template='plotly_white',
+            height=600
+        )
+        return fig
         # Compute FFT
         pred_fft = torch.fft.rfft(predicted_audio.flatten()).cpu().numpy()
         target_fft = torch.fft.rfft(target_audio.flatten()).cpu().numpy()
