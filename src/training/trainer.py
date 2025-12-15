@@ -50,7 +50,7 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         
-        pbar = tqdm(self.train_loader, desc="Training", leave=False)
+        pbar = tqdm(self.train_loader, desc="Training", leave=False, mininterval=10.0)
         for batch_idx, (x, y) in enumerate(pbar):
             x, y = x.to(self.device), y.to(self.device)
             
@@ -79,7 +79,7 @@ class Trainer:
         total_loss = 0.0
         extra_losses = {name: 0.0 for name in self.validation_loss_fns}
         
-        pbar = tqdm(self.val_loader, desc="Validation", leave=False)
+        pbar = tqdm(self.val_loader, desc="Validation", leave=False, mininterval=5.0)
         with torch.no_grad():
             for x, y in pbar:
                 x, y = x.to(self.device), y.to(self.device)
@@ -102,7 +102,9 @@ class Trainer:
         return avg_loss, avg_extras
         
     def train(self, callbacks: Optional[list] = None):
-        epoch_pbar = tqdm(range(self.config.epochs), desc="Epochs")
+        # Use simpler output for Kaggle (no ncols, but explicit file or just simple iteration)
+        # Using mininterval helps reduce log spam
+        epoch_pbar = tqdm(range(self.config.epochs), desc="Epochs", mininterval=10.0)
         for epoch in epoch_pbar:
             train_loss = self.train_epoch()
             val_loss, val_metrics = self.validate()

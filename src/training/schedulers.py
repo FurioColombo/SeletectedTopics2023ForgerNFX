@@ -48,8 +48,7 @@ class WarmupReduceLROnPlateau(BaseLRScheduler):
             mode=mode,
             factor=factor,
             patience=patience,
-            min_lr=min_lr,
-            verbose=verbose
+            min_lr=min_lr
         )
         
     def step_batch(self, batch_idx: int = None):
