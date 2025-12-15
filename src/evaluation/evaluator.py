@@ -221,8 +221,13 @@ class ModelEvaluator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
         if format == 'json':
+            # Remove audio samples containing tensors before saving to JSON
+            results_to_save = results.copy()
+            if 'audio_samples' in results_to_save:
+                del results_to_save['audio_samples']
+                
             with open(output_path, 'w') as f:
-                json.dump(results, f, indent=2)
+                json.dump(results_to_save, f, indent=2)
         
         elif format == 'csv':
             # Save aggregated metrics
