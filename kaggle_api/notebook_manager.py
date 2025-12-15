@@ -125,7 +125,7 @@ class NotebookManager:
                 "source": [
                     "# Run Evaluation\n",
                     "# Auto-discovers latest checkpoint and logs 5 samples to W&B\n",
-                    f"!python evaluate.py --effect TubeScreamer --limit-samples 5 --save-preds\n"
+                    f"!python evaluate.py --effect TubeScreamer --limit-samples 5 --save-preds --dataset-root {config.get('data_root', '/kaggle/input/egfx-dataset')}\n"
                 ]
             }
         ])
