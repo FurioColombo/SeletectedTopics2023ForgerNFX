@@ -83,42 +83,50 @@ def run_evaluation(
     
     file_pairs = [(f, target_dir / f.name) for f in test_files if (target_dir / f.name).exists()]
     
-    seq_runner = SequenceRunner(model, file_pairs, device=device)
-    visualizer = MetricsVisualizer(quantitative_results) # Init with quant results
+    # ... (Imports)
+    from src.logging.wandb_logger import WandbLogger
     
-    # W&B Init
-    wandb.init(project="forger-nfx", tags=["modular-eval"], name=f"eval_{effect_name}_{datetime.now().strftime('%H%M')}")
-    wandb.log(quantitative_results['metrics']) # Log scalar metrics
+    # ... (Setup)
     
-    audio_table = wandb.Table(columns=["name", "input", "target", "prediction", "spectrogram_overlap"])
+    # Init Logger
+    logger = WandbLogger(
+        project="forger-nfx",
+        config={"checkpoint": str(checkpoint_path), "effect": effect_name},
+        name=f"eval_{effect_name}_{datetime.now().strftime('%H%M')}",
+        tags=["modular-eval"]
+    )
+    
+    # ... (Phase 1)
+    
+    quantitative_results = analyzer.get_aggregated_results()
+    print(analyzer.generate_summary())
+    
+    # Log Quantitative
+    logger.log_test_quantitative(quantitative_results)
+    
+    # ... (Phase 2)
+    
+    # Collect all qualitative results first
+    qualitative_sequences = []
+    
+    visualizer = MetricsVisualizer(quantitative_results)
     
     for seq_res in seq_runner.run():
         name = seq_res['name']
         print(f"  Processing {name}...")
         
-        # Save WAVs
+        # Save WAVs locally
         if save_preds:
             (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
             import torchaudio
             torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", seq_res['prediction'].unsqueeze(0), seq_res['sample_rate'])
         
-        # Visualize
-        fig_overlap = visualizer.plot_spectral_overlap(
-            seq_res['input'], seq_res['prediction'], seq_res['target']
-        )
+        qualitative_sequences.append(seq_res)
         
-        # Log to W&B
-        audio_table.add_data(
-            name,
-            wandb.Audio(seq_res['input'].numpy(), sample_rate=seq_res['sample_rate']),
-            wandb.Audio(seq_res['target'].numpy(), sample_rate=seq_res['sample_rate']),
-            wandb.Audio(seq_res['prediction'].numpy(), sample_rate=seq_res['sample_rate']),
-            wandb.Html(fig_overlap.to_html(include_plotlyjs='cdn'))
-        )
-        
-    wandb.log({"qualitative_analysis": audio_table})
-    wandb.finish()
+    # Log Qualitative (Batch upload to Table)
+    logger.log_test_qualitative(qualitative_sequences, visualizer=visualizer)
     
+    logger.finish()
     print("\n✅ Evaluation Complete.")
 
 if __name__ == "__main__":
