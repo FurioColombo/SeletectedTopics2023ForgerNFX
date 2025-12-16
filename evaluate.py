@@ -110,30 +110,8 @@ def run_evaluation(
     
     file_pairs = [(f, target_path / f.name) for f in test_files if (target_path / f.name).exists()]
     
-    file_pairs = [(f, target_dir / f.name) for f in test_files if (target_dir / f.name).exists()]
-    
-    # ... (Imports)
-    from src.logging.wandb_logger import WandbLogger
-    
-    # ... (Setup)
-    
-    # Init Logger
-    logger = WandbLogger(
-        project="forger-nfx",
-        config={"checkpoint": str(checkpoint_path), "effect": effect_name},
-        name=f"eval_{effect_name}_{datetime.now().strftime('%H%M')}",
-        tags=["modular-eval"]
-    )
-    
-    # ... (Phase 1)
-    
-    quantitative_results = analyzer.get_aggregated_results()
-    print(analyzer.generate_summary())
-    
-    # Log Quantitative
-    logger.log_test_quantitative(quantitative_results)
-    
-    # ... (Phase 2)
+    seq_runner = SequenceRunner(model, file_pairs, device=device)
+    visualizer = MetricsVisualizer(quantitative_results) 
     
     # Collect all qualitative results first
     qualitative_sequences = []
