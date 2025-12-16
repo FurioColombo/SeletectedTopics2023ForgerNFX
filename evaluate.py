@@ -35,15 +35,22 @@ def run_evaluation(
     checkpoint = torch.load(checkpoint_path, map_location=device)
     
     # Infer architecture
+    from src.config.config import ModelConfig
+    
     if 'conv' in str(checkpoint_path).lower():
-         model = ConvModel() # Default/Placeholder logic
+         # Placeholder for ConvModel config if needed
+         # Assuming ConvModel also takes config, need to inspect if used regarding hidden_size?
+         # For now, let's focus on LSTM fix as requested.
+         model = ConvModel(ModelConfig(name="conv")) 
     else:
         # Robust load for LSTM
         state_dict = checkpoint.get('state_dict', checkpoint)
         hidden_size = 16 # fallback
         if 'lstm.weight_hh_l0' in state_dict:
             hidden_size = state_dict['lstm.weight_hh_l0'].shape[1]
-        model = LSTMModel(hidden_size=hidden_size)
+        
+        config = ModelConfig(name="lstm", hidden_size=hidden_size)
+        model = LSTMModel(config)
         
     model.load_state_dict(state_dict)
     model.to(device)
