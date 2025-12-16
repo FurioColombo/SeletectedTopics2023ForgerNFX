@@ -149,14 +149,23 @@ if __name__ == "__main__":
              p = Path(d)
              if p.exists():
                  candidates.extend(list(p.rglob("*.pth")))
+                 candidates.extend(list(p.rglob("*.pt")))
         
         if not candidates:
-            print("❌ No checkpoint provided and no .pth files found in 'checkpoints/' or 'runs/'")
+            print("❌ No checkpoint provided and no .pth/.pt files found in 'checkpoints/' or 'runs/'")
             sys.exit(1)
             
-        # Sort by modification time (latest first)
-        checkpoint_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
-        print(f"🔄 Auto-discovered latest checkpoint: {checkpoint_path}")
+        # Prioritize 'best_model.pt'
+        best_candidates = [c for c in candidates if "best" in c.name.lower()]
+        
+        if best_candidates:
+             # Sort best candidates by modification time
+             checkpoint_path = sorted(best_candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+             print(f"🏆 Auto-discovered best model: {checkpoint_path}")
+        else:
+             # Sort all candidates by modification time
+             checkpoint_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+             print(f"🔄 Auto-discovered latest checkpoint (no 'best' found): {checkpoint_path}")
     
     run_evaluation(
         Path(checkpoint_path),
