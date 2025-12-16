@@ -131,7 +131,7 @@ def run_evaluation(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=str, required=True)
+    parser.add_argument("--checkpoint", type=str, required=False, help="Path to model checkpoint. Auto-discovered if not provided.")
     parser.add_argument("--effect", type=str, required=True)
     parser.add_argument("--dataset-root", type=str, required=True)
     parser.add_argument("--save-preds", action="store_true")
@@ -139,8 +139,25 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    checkpoint_path = args.checkpoint
+    if not checkpoint_path:
+        # Auto-discovery
+        ckpt_dir = Path("checkpoints")
+        if not ckpt_dir.exists():
+            print("❌ No checkpoint provided and 'checkpoints' directory not found.")
+            sys.exit(1)
+        
+        ckpts = list(ckpt_dir.glob("*.pth"))
+        if not ckpts:
+            print("❌ No .pth files found in 'checkpoints' directory.")
+            sys.exit(1)
+            
+        # Sort by modification time (latest first)
+        checkpoint_path = sorted(ckpts, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+        print(f"🔄 Auto-discovered latest checkpoint: {checkpoint_path}")
+    
     run_evaluation(
-        Path(args.checkpoint),
+        Path(checkpoint_path),
         Path(args.dataset_root),
         args.effect,
         Path("evaluation_outputs"),
