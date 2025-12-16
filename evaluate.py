@@ -37,18 +37,29 @@ def run_evaluation(
     # Infer architecture
     from src.config.config import ModelConfig
     
+    # Extract state_dict and config
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        state_dict = checkpoint['model_state_dict']
+        saved_config = checkpoint.get('config', {})
+    else:
+        state_dict = checkpoint
+        saved_config = {}
+
     if 'conv' in str(checkpoint_path).lower():
          # Placeholder for ConvModel config if needed
-         # Assuming ConvModel also takes config, need to inspect if used regarding hidden_size?
-         # For now, let's focus on LSTM fix as requested.
          model = ConvModel(ModelConfig(name="conv")) 
     else:
-        # Robust load for LSTM
-        state_dict = checkpoint.get('state_dict', checkpoint)
-        hidden_size = 16 # fallback
-        if 'lstm.weight_hh_l0' in state_dict:
-            hidden_size = state_dict['lstm.weight_hh_l0'].shape[1]
+        # LSTM Initialization
+        # Try to get hidden_size from saved config
+        if saved_config and 'hidden_size' in saved_config:
+            hidden_size = saved_config['hidden_size']
+        else:
+            # Fallback: Infer from state_dict shape
+            hidden_size = 16 # fallback
+            if 'lstm.weight_hh_l0' in state_dict:
+                hidden_size = state_dict['lstm.weight_hh_l0'].shape[1]
         
+        print(f"Initializing LSTM with hidden_size={hidden_size}")
         config = ModelConfig(name="lstm", hidden_size=hidden_size)
         model = LSTMModel(config)
         
