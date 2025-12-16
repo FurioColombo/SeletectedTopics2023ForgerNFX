@@ -142,18 +142,20 @@ if __name__ == "__main__":
     checkpoint_path = args.checkpoint
     if not checkpoint_path:
         # Auto-discovery
-        ckpt_dir = Path("checkpoints")
-        if not ckpt_dir.exists():
-            print("❌ No checkpoint provided and 'checkpoints' directory not found.")
-            sys.exit(1)
+        # Check both local 'checkpoints' and 'runs' directories
+        candidates = []
         
-        ckpts = list(ckpt_dir.glob("*.pth"))
-        if not ckpts:
-            print("❌ No .pth files found in 'checkpoints' directory.")
+        for d in ["checkpoints", "runs"]:
+             p = Path(d)
+             if p.exists():
+                 candidates.extend(list(p.rglob("*.pth")))
+        
+        if not candidates:
+            print("❌ No checkpoint provided and no .pth files found in 'checkpoints/' or 'runs/'")
             sys.exit(1)
             
         # Sort by modification time (latest first)
-        checkpoint_path = sorted(ckpts, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+        checkpoint_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
         print(f"🔄 Auto-discovered latest checkpoint: {checkpoint_path}")
     
     run_evaluation(
