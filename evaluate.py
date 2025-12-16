@@ -68,18 +68,26 @@ def run_evaluation(
     model.eval()
     
     # 2. Setup Data
-    input_root = dataset_root / effect_name / "Train" # Use Train for now or Test if split
-    # Note: Kaggle dataset structure might differ. Assuming standard EGFx structure.
-    # If explicit paths needed, user can adjust.
-    # Actually, let's use the provided root.
+    input_folder = "Clean" # Default, could be argument
+    input_path = dataset_root / input_folder
+    target_path = dataset_root / effect_name
     
+    print(f"Data Input: {input_path}")
+    print(f"Data Target: {target_path}")
+
     # 3. PHASE 1: Quantitative (Segments)
     print("\n📊 Phase 1: Quantitative Evaluation (Segments)")
-    dataset = EGFxDataset(
-        input_root=str(dataset_root / effect_name / "Train"), # Or Test
-        output_root=str(dataset_root / effect_name / "Target"),
-        block_size=2048
-    )
+    try:
+        dataset = EGFxDataset(
+            input_root=str(input_path),
+            output_root=str(target_path),
+            block_size=2048
+        )
+    except ValueError as e:
+        print(f"❌ Dataset Init Failed: {e}")
+        print(f"Please check if '{input_folder}' and '{effect_name}' folders exist in {dataset_root}")
+        sys.exit(1)
+
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, num_workers=2)
     
     analyzer = MetricAnalyzer()
@@ -91,13 +99,16 @@ def run_evaluation(
     quantitative_results = analyzer.get_aggregated_results()
     print(analyzer.generate_summary())
     
+    # Log Quantitative
+    logger.log_test_quantitative(quantitative_results)
+    
     # 4. PHASE 2: Qualitative (Full Sequences)
     print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
     # Find a few test files
-    train_dir = dataset_root / effect_name / "Train"
-    target_dir = dataset_root / effect_name / "Target"
-    all_files = list(train_dir.glob("*.wav"))
+    all_files = list(input_path.glob("*.wav"))
     test_files = all_files[:3] # process first 3 files fully
+    
+    file_pairs = [(f, target_path / f.name) for f in test_files if (target_path / f.name).exists()]
     
     file_pairs = [(f, target_dir / f.name) for f in test_files if (target_dir / f.name).exists()]
     
