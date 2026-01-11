@@ -6,7 +6,6 @@ import wandb
 import sys
 from datetime import datetime
 
-from src.config.paths import ConfigPaths
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
 from src.models.conv import ConvModel
