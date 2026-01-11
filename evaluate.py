@@ -6,6 +6,8 @@ import wandb
 import sys
 from datetime import datetime
 
+from src.config.paths import ConfigPaths
+from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
 from src.models.conv import ConvModel
 from src.data.egfx import EGFxDataset
@@ -29,6 +31,14 @@ def run_evaluation(
     print(f"\n🚀 STARTING MODULAR EVALUATION")
     print(f"Model: {checkpoint_path}")
     print(f"Dataset: {dataset_root}")
+    
+    # Initialize logger first
+    logger = WandbLogger(
+        project="forger-nfx",
+        config={"checkpoint": str(checkpoint_path), "effect": effect_name},
+        name=f"eval_{effect_name}_{datetime.now().strftime('%H%M')}",
+        tags=["modular-eval"]
+    )
     
     # 1. Load Model
     print("Loading model...")
