@@ -13,6 +13,7 @@ from src.data.egfx import EGFxDataset
 from src.inference.runners import SegmentRunner, SequenceRunner
 from src.evaluation.analyzer import MetricAnalyzer
 from src.evaluation.visualizer import MetricsVisualizer
+from src.utils.gpu import find_optimal_batch_size, print_gpu_info
 
 def load_config(path: str):
     with open(path, 'r') as f:
@@ -30,6 +31,9 @@ def run_evaluation(
     print(f"\n🚀 STARTING MODULAR EVALUATION")
     print(f"Model: {checkpoint_path}")
     print(f"Dataset: {dataset_root}")
+    
+    # Print GPU info
+    print_gpu_info()
     
     # Initialize logger first
     logger = WandbLogger(
@@ -97,7 +101,32 @@ def run_evaluation(
         print(f"Please check if '{input_folder}' and '{effect_name}' folders exist in {dataset_root}")
         sys.exit(1)
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, num_workers=2)
+    # Find optimal batch size dynamically
+    def test_batch(batch_size: int):
+        """Test function for batch size selection."""
+        test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0)
+        batch = next(iter(test_loader))
+        inputs = batch[0].to(device)
+        with torch.no_grad():
+            _ = model(inputs)
+    
+    if device == "cuda":
+        optimal_batch_size = find_optimal_batch_size(
+            test_fn=test_batch,
+            min_batch_size=8,
+            max_batch_size=256,
+            device=device
+        )
+    else:
+        optimal_batch_size = 32  # Default for CPU
+        print(f"ℹ️  Using default CPU batch size: {optimal_batch_size}")
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=optimal_batch_size, 
+        num_workers=2,
+        pin_memory=(device == "cuda")
+    )
     
     analyzer = MetricAnalyzer()
     seg_runner = SegmentRunner(model, dataloader, device, limit_batches=(limit_samples//32 if limit_samples else None))
