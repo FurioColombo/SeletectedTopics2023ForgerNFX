@@ -74,7 +74,10 @@ class WandbLogger(BaseLogger):
         columns = ["name", "audio_input", "audio_target", "audio_prediction", "spectrogram_overlap"]
         table = wandb.Table(columns=columns)
         
-        for seq in sequences:
+        # Also log plots as standalone images for better visibility
+        plot_dict = {}
+        
+        for idx, seq in enumerate(sequences):
             name = seq['name']
             sr = seq['sample_rate']
             
@@ -86,14 +89,22 @@ class WandbLogger(BaseLogger):
             # Create Plot if visualizer provided
             plot_html = None
             if visualizer:
-                # Convert back to tensor for visualizer if needed, or update visualizer to handle numpy
-                # Visualizer expects tensors currently
+                # Convert back to tensor for visualizer if needed
                 inp_t = torch.tensor(inp) if not torch.is_tensor(seq['input']) else seq['input']
                 tgt_t = torch.tensor(tgt) if not torch.is_tensor(seq['target']) else seq['target']
                 pred_t = torch.tensor(pred) if not torch.is_tensor(seq['prediction']) else seq['prediction']
                 
+                # Generate spectral overlap plot
                 fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t)
                 plot_html = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
+                
+                # Also log as standalone plotly chart (more visible in W&B)
+                plot_dict[f"test/qualitative/spectral_overlap/{name}"] = fig
+            
+            # Log individual audio files as well (easier to find than in table)
+            plot_dict[f"test/qualitative/audio/{name}/input"] = wandb.Audio(inp, sample_rate=sr, caption=f"{name}_input")
+            plot_dict[f"test/qualitative/audio/{name}/target"] = wandb.Audio(tgt, sample_rate=sr, caption=f"{name}_target")
+            plot_dict[f"test/qualitative/audio/{name}/prediction"] = wandb.Audio(pred, sample_rate=sr, caption=f"{name}_prediction")
             
             table.add_data(
                 name,
@@ -102,8 +113,10 @@ class WandbLogger(BaseLogger):
                 wandb.Audio(pred, sample_rate=sr, caption="Prediction"),
                 plot_html
             )
-            
-        wandb.log({"test/qualitative_analysis": table})
+        
+        # Log everything at once
+        plot_dict["test/qualitative_analysis"] = table
+        wandb.log(plot_dict)
         
     def finish(self):
         wandb.finish()
