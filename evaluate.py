@@ -140,7 +140,12 @@ def run_evaluation(
     )
     
     analyzer = MetricAnalyzer()
-    seg_runner = SegmentRunner(model, dataloader, device, limit_batches=(limit_samples//32 if limit_samples else None))
+    seg_runner = SegmentRunner(
+        model, 
+        dataloader, 
+        device, 
+        limit_batches=(limit_samples // optimal_batch_size if limit_samples else None)
+    )
     
     for batch_res in seg_runner.run():
         analyzer.process_batch(batch_res)
