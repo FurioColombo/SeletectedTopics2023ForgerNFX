@@ -178,34 +178,48 @@ def run_evaluation(
     
     # 4. PHASE 2: Qualitative (Full Sequences)
     print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
-    # Find a few test files
+    
+    # Find a few test files (independent of limit_samples)
     all_files = list(input_path.glob("*.wav"))
-    test_files = all_files[:3] # process first 3 files fully
+    print(f"Found {len(all_files)} audio files in {input_path}")
+    
+    # Always evaluate at least 3 files for qualitative analysis
+    test_files = all_files[:min(3, len(all_files))]
+    print(f"Selected {len(test_files)} files for qualitative analysis")
     
     file_pairs = [(f, target_path / f.name) for f in test_files if (target_path / f.name).exists()]
+    print(f"Found {len(file_pairs)} valid file pairs (with matching targets)")
     
-    seq_runner = SequenceRunner(model, file_pairs, device=device)
-    visualizer = MetricsVisualizer(quantitative_results) 
-    
-    # Collect all qualitative results first
-    qualitative_sequences = []
-    
-    visualizer = MetricsVisualizer(quantitative_results)
-    
-    for seq_res in seq_runner.run():
-        name = seq_res['name']
-        print(f"  Processing {name}...")
+    if not file_pairs:
+        print("⚠️  No file pairs found for qualitative evaluation, skipping...")
+    else:
+        seq_runner = SequenceRunner(model, file_pairs, device=device)
+        visualizer = MetricsVisualizer(quantitative_results) 
         
-        # Save WAVs locally
-        if save_preds:
-            (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
-            import torchaudio
-            torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", seq_res['prediction'].unsqueeze(0), seq_res['sample_rate'])
+        # Collect all qualitative results first
+        qualitative_sequences = []
         
-        qualitative_sequences.append(seq_res)
+        for seq_res in seq_runner.run():
+            name = seq_res['name']
+            print(f"  Processing {name}...")
+            
+            # Save WAVs locally
+            if save_preds:
+                (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
+                import torchaudio
+                torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", seq_res['prediction'].unsqueeze(0), seq_res['sample_rate'])
+            
+            qualitative_sequences.append(seq_res)
         
-    # Log Qualitative (Batch upload to Table)
-    logger.log_test_qualitative(qualitative_sequences, visualizer=visualizer)
+        print(f"✅ Collected {len(qualitative_sequences)} qualitative sequences")
+        
+        # Log Qualitative (Batch upload to Table)
+        if qualitative_sequences:
+            print("📤 Logging qualitative results to W&B...")
+            logger.log_test_qualitative(qualitative_sequences, visualizer=visualizer)
+            print("✅ Qualitative logging complete")
+        else:
+            print("⚠️  No qualitative sequences to log")
     
     logger.finish()
     print("\n✅ Evaluation Complete.")
