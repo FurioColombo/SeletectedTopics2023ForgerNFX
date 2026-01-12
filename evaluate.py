@@ -121,11 +121,22 @@ def run_evaluation(
         optimal_batch_size = 32  # Default for CPU
         print(f"ℹ️  Using default CPU batch size: {optimal_batch_size}")
 
+    # Optimize num_workers based on CPU cores
+    import os
+    cpu_count = os.cpu_count() or 2
+    # For I/O-bound tasks (loading audio files), use more workers
+    # Kaggle has ~2 cores, local machines might have 8+
+    optimal_workers = min(cpu_count * 2, 8) if device == "cuda" else 2
+    
+    print(f"📦 DataLoader config: batch_size={optimal_batch_size}, num_workers={optimal_workers}")
+
     dataloader = torch.utils.data.DataLoader(
         dataset, 
         batch_size=optimal_batch_size, 
-        num_workers=2,
-        pin_memory=(device == "cuda")
+        num_workers=optimal_workers,
+        pin_memory=(device == "cuda"),
+        prefetch_factor=4 if optimal_workers > 0 else None,  # Prefetch 4 batches per worker
+        persistent_workers=(optimal_workers > 0)  # Keep workers alive between epochs
     )
     
     analyzer = MetricAnalyzer()
