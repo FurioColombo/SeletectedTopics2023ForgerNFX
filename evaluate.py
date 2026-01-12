@@ -25,7 +25,7 @@ def run_evaluation(
     effect_name: str,
     output_dir: Path,
     device: str = "cpu",
-    limit_samples: int = None,
+    limit_samples: int = None,  # Can be int (sample count) or float (fraction)
     save_preds: bool = False
 ):
     print(f"\n🚀 STARTING MODULAR EVALUATION")
@@ -137,14 +137,32 @@ def run_evaluation(
         pin_memory=(device == "cuda"),
         prefetch_factor=4 if optimal_workers > 0 else None,  # Prefetch 4 batches per worker
         persistent_workers=(optimal_workers > 0)  # Keep workers alive between epochs
-    )
+    # Calculate how many batches to process
+    total_samples = len(dataset)
+    print(f"📊 Total dataset samples: {total_samples:,}")
+    
+    # Handle fraction (passed as float between 0 and 1)
+    if limit_samples is not None and isinstance(limit_samples, float) and 0 < limit_samples < 1:
+        actual_limit = int(total_samples * limit_samples)
+        print(f"🎯 Using {limit_samples*100:.1f}% of dataset = {actual_limit:,} samples")
+        limit_samples = actual_limit
+    
+    # Determine limit_batches based on limit_samples
+    limit_batches = None
+    if limit_samples is not None:
+        limit_batches = (limit_samples // optimal_batch_size) + (1 if limit_samples % optimal_batch_size else 0)
+        actual_samples = min(limit_samples, total_samples)
+        print(f"🎯 Evaluating on {actual_samples:,} samples ({limit_batches} batches)")
+    else:
+        # Full dataset
+        print(f"🎯 Evaluating on full dataset ({total_samples:,} samples)")
     
     analyzer = MetricAnalyzer()
     seg_runner = SegmentRunner(
         model, 
         dataloader, 
         device, 
-        limit_batches=(limit_samples // optimal_batch_size if limit_samples else None)
+        limit_batches=limit_batches
     )
     
     for batch_res in seg_runner.run():
@@ -191,12 +209,13 @@ def run_evaluation(
     print("\n✅ Evaluation Complete.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Evaluate model on audio effect dataset")
     parser.add_argument("--checkpoint", type=str, required=False, help="Path to model checkpoint. Auto-discovered if not provided.")
-    parser.add_argument("--effect", type=str, required=True)
-    parser.add_argument("--dataset-root", type=str, required=True)
-    parser.add_argument("--save-preds", action="store_true")
-    parser.add_argument("--limit-samples", type=int, default=100)
+    parser.add_argument("--effect", type=str, required=True, help="Effect name (e.g., TubeScreamer)")
+    parser.add_argument("--dataset-root", type=str, required=True, help="Root directory of dataset")
+    parser.add_argument("--save-preds", action="store_true", help="Save predicted audio files")
+    parser.add_argument("--limit-samples", type=int, default=None, help="Limit to N samples (overrides --fraction)")
+    parser.add_argument("--fraction", type=float, default=None, help="Evaluate on fraction of dataset (e.g., 0.05 for 5%%)")
     
     args = parser.parse_args()
     
@@ -225,15 +244,24 @@ if __name__ == "__main__":
              print(f"🏆 Auto-discovered best model: {checkpoint_path}")
         else:
              # Sort all candidates by modification time
-             checkpoint_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
-             print(f"🔄 Auto-discovered latest checkpoint (no 'best' found): {checkpoint_path}")
+              checkpoint_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+              print(f"🔄 Auto-discovered latest checkpoint (no 'best' found): {checkpoint_path}")
+    
+    # Handle fraction parameter
+    limit_samples = args.limit_samples
+    if args.fraction is not None:
+        if args.limit_samples is not None:
+            print("⚠️  Both --fraction and --limit-samples provided. Using --limit-samples.")
+        else:
+            # Will calculate actual limit after dataset is loaded
+            limit_samples = args.fraction  # Pass as float, will be converted in run_evaluation
     
     run_evaluation(
         Path(checkpoint_path),
         Path(args.dataset_root),
         args.effect,
         Path("evaluation_outputs"),
-        limit_samples=args.limit_samples,
+        limit_samples=limit_samples,
         save_preds=args.save_preds,
         device="cuda" if torch.cuda.is_available() else "cpu"
     )
