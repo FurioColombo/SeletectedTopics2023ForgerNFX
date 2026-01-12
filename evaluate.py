@@ -137,6 +137,8 @@ def run_evaluation(
         pin_memory=(device == "cuda"),
         prefetch_factor=4 if optimal_workers > 0 else None,  # Prefetch 4 batches per worker
         persistent_workers=(optimal_workers > 0)  # Keep workers alive between epochs
+    )
+    
     # Calculate how many batches to process
     total_samples = len(dataset)
     print(f"📊 Total dataset samples: {total_samples:,}")
