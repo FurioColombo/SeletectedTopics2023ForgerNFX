@@ -203,6 +203,18 @@ def run_evaluation(
             name = seq_res['name']
             print(f"  Processing {name}...")
             
+            # Generate and display spectral overlap plot INLINE
+            inp_t = seq_res['input']
+            tgt_t = seq_res['target']
+            pred_t = seq_res['prediction']
+            
+            # Create the plot
+            fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t)
+            
+            # Display inline in notebook
+            print(f"\n📊 Spectral Overlap for {name}:")
+            fig.show()  # This will render in Kaggle notebook
+            
             # Save WAVs locally
             if save_preds:
                 (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
@@ -211,7 +223,7 @@ def run_evaluation(
             
             qualitative_sequences.append(seq_res)
         
-        print(f"✅ Collected {len(qualitative_sequences)} qualitative sequences")
+        print(f"\n✅ Collected {len(qualitative_sequences)} qualitative sequences")
         
         # Log Qualitative (Batch upload to Table)
         if qualitative_sequences:
