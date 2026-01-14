@@ -188,16 +188,16 @@ def run_evaluation(
     print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
     
     # Use the actual files from the dataset (which we know exist)
-    if hasattr(dataset, 'paired_files') and len(dataset.paired_files) > 0:
-        available_files = dataset.paired_files[:min(3, len(dataset.paired_files))]
-        print(f"Selected {len(available_files)} files from dataset for qualitative analysis")
+    if hasattr(dataset, 'input_files') and hasattr(dataset, 'output_files') and len(dataset.input_files) > 0:
+        # Select first 3 file pairs from the dataset
+        num_files = min(3, len(dataset.input_files))
+        selected_input = dataset.input_files[:num_files]
+        selected_output = dataset.output_files[:num_files]
         
-        # Convert dataset file pairs to full paths
-        file_pairs = [
-            (Path(input_path) / fname, Path(target_path) / fname) 
-            for fname in available_files
-        ]
+        file_pairs = [(Path(inp), Path(out)) for inp, out in zip(selected_input, selected_output)]
+        print(f"✅ Selected {len(file_pairs)} file pairs from dataset for qualitative analysis")
     else:
+        print("⚠️  Dataset doesn't have file lists, trying fallback...")
         # Fallback: try to find files directly
         all_files = list(Path(input_path).glob("*.wav"))
         print(f"Found {len(all_files)} audio files in {input_path}")
