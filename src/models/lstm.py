@@ -21,9 +21,13 @@ class LSTMModel(BaseAudioModel):
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x shape: (batch, channels, time) -> need (batch, time, channels) for LSTM
-        # Assuming input is (batch, 1, time)
         if x.shape[1] == 1:
-            x = x.transpose(1, 2).contiguous()  # Ensure contiguous after transpose
+            x = x.transpose(1, 2).contiguous()
+            
+        # Debug / Safety check
+        if not x.is_contiguous():
+            print(f"⚠️ Warning: LSTM input not contiguous! Shape: {x.shape}, Strides: {x.stride()}")
+            x = x.contiguous()
             
         lstm_out, _ = self.lstm(x)
         out = self.dense(lstm_out)
