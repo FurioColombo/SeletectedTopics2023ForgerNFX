@@ -1,6 +1,12 @@
+import warnings
+import os
+
+# Suppress pydantic warnings BEFORE imports
+warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
 import argparse
 import torch
-import os
 from pathlib import Path
 import sys
 

@@ -136,7 +136,7 @@ def run_evaluation(
     cpu_count = os.cpu_count() or 2
     # For I/O-bound tasks (loading audio files), use more workers
     # Kaggle has ~2 cores, local machines might have 8+
-    optimal_workers = min(cpu_count * 2, 8) if device == "cuda" else 2
+    optimal_workers = min(cpu_count * 2, 4) if device == "cuda" else 2
     
     print(f"📦 DataLoader config: batch_size={optimal_batch_size}, num_workers={optimal_workers}")
 
