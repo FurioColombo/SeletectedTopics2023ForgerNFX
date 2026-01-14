@@ -94,36 +94,35 @@ class WandbLogger(BaseLogger):
                 
         return audio_data
 
+    def log_objective_evaluation(self, visualizer):
+        """
+        Log objective evaluation plots (metrics overview).
+        """
+        if not visualizer:
+            return
+            
+        fig = visualizer.plot_metrics_overview()
+        wandb.log({"test/objective_evaluation/metrics_overview": wandb.Html(fig.to_html(include_plotlyjs='cdn'))})
+
     def log_test_qualitative(self, sequences: List[Dict[str, Any]], visualizer=None):
         if not sequences:
             return
             
         print("📤 Uploading qualitative results to W&B...")
         
-        # Create Unified Table
-        # Columns: Name, Audio (In, Tgt, Pred), Spectral Plot, Key Metrics
-        columns = [
-            "name", 
-            "audio_input", "audio_target", "audio_prediction", 
-            "spectral_analysis",
-            "esr", "mse", "phase_error"
-        ]
-        table = wandb.Table(columns=columns)
-        
         plot_dict = {}
         
         for idx, seq in enumerate(sequences):
             name = seq['name']
             sr = seq['sample_rate']
-            metrics = seq.get('metrics', {}) # Get per-sample metrics if available
+            metrics = seq.get('metrics', {})
             
-            # Prepare audio for W&B
+            # Prepare audio
             inp_np = self._prepare_audio_for_wandb(seq['input'])
             tgt_np = self._prepare_audio_for_wandb(seq['target'])
             pred_np = self._prepare_audio_for_wandb(seq['prediction'])
             
-            # Create Plot if visualizer provided
-            plot_html = None
+            # 1. Log Spectral Plot (Interactive HTML)
             if visualizer:
                 inp_t = seq['input'] if torch.is_tensor(seq['input']) else torch.from_numpy(seq['input'])
                 tgt_t = seq['target'] if torch.is_tensor(seq['target']) else torch.from_numpy(seq['target'])
@@ -131,26 +130,16 @@ class WandbLogger(BaseLogger):
 
                 # Generate spectral overlap plot (Pass metrics for title embedding)
                 fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=metrics)
-                plot_html = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
                 
-                # OPTIONAL: You can still log the standalone plot if you really want it in the "Images" tab, 
-                # but if you want to declutter, rely on the Table.
-                # plot_dict[f"test/qualitative/spectral_overlap/{name}"] = fig
+                # Log to dedicated section per sample
+                plot_dict[f"test/qualitative/{name}/spectrogram"] = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
             
-            # Add Row to Unified Table
-            table.add_data(
-                name,
-                wandb.Audio(inp_np, sample_rate=sr, caption="Input"),
-                wandb.Audio(tgt_np, sample_rate=sr, caption="Target"),
-                wandb.Audio(pred_np, sample_rate=sr, caption="Prediction"),
-                plot_html,
-                metrics.get('esr', 0),
-                metrics.get('mse', 0),
-                metrics.get('phase_response_error_rad', 0)
-            )
+            # 2. Log Audios to dedicated section per sample
+            plot_dict[f"test/qualitative/{name}/audio_input"] = wandb.Audio(inp_np, sample_rate=sr, caption="Input")
+            plot_dict[f"test/qualitative/{name}/audio_target"] = wandb.Audio(tgt_np, sample_rate=sr, caption="Target")
+            plot_dict[f"test/qualitative/{name}/audio_prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption="Prediction")
         
-        # Log ONLY the table (and minimal other stuff if needed)
-        plot_dict["test/qualitative_report"] = table
+        # Log all qualitative assets
         wandb.log(plot_dict)
         
     def finish(self):
