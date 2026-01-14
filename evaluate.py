@@ -17,8 +17,12 @@ import sys
 from datetime import datetime
 import plotly.io as pio
 
-# Set renderer to 'notebook' which injects JS directly (Works best in Kaggle)
-pio.renderers.default = "notebook"
+# Suppress Kaleido warnings (static image export)
+import warnings
+warnings.filterwarnings("ignore", message=".*Kaleido.*")
+
+# Set renderer to 'iframe' which is safest for Kaggle to avoid "Wall of Text" JS dumps
+pio.renderers.default = "iframe"
 
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
