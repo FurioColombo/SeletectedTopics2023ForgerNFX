@@ -215,7 +215,16 @@ def run_evaluation(
     else:
         print(f"✅ Processing {len(file_pairs)} file pairs for qualitative evaluation")
         
-        seq_runner = SequenceRunner(model, file_pairs, device=device)
+        # Switch to CPU for full sequence inference to avoid cuDNN limits on long sequences
+        # (CUDNN_STATUS_NOT_SUPPORTED errors on very long LSTMs)
+        print("ℹ️  Switching to CPU for qualitative inference (safer for long sequences)...")
+        model.cpu()
+        
+        # clear GPU cache
+        if device == "cuda":
+            torch.cuda.empty_cache()
+            
+        seq_runner = SequenceRunner(model, file_pairs, device="cpu")
         visualizer = MetricsVisualizer(quantitative_results) 
         
         # Collect all qualitative results first
