@@ -407,7 +407,8 @@ class MetricsVisualizer:
         input_audio: torch.Tensor,
         predicted_audio: torch.Tensor,
         target_audio: torch.Tensor,
-        n_fft: int = 4096 # Increased n_fft for better resolution at low freqs
+        n_fft: int = 4096, # Increased n_fft for better resolution at low freqs
+        metrics: Optional[Dict[str, float]] = None
     ) -> go.Figure:
         """
         Plot overlapping frequency analysis of Input, Target, and Prediction.
@@ -442,8 +443,16 @@ class MetricsVisualizer:
             opacity=0.9
         ))
         
+        title_text = 'Spectrogram Overlap (1/3 Octave Smoothed)'
+        if metrics:
+            # Add key metrics to subtitle
+            # e.g. "ESR: 0.05 | MSE: 0.002 | Phase: 0.5 rad"
+            # Selected small subset for readability
+            metric_str = f"ESR: {metrics.get('esr', 0):.4f} | MSE: {metrics.get('mse', 0):.5f} | Phase: {metrics.get('phase_response_error_rad', 0):.2f}"
+            title_text += f"<br><sup>{metric_str}</sup>"
+        
         fig.update_layout(
-            title='Spectrogram Overlap (1/3 Octave Smoothed)',
+            title=title_text,
             xaxis_title='Frequency (Hz)',
             yaxis_title='Magnitude (dB)',
             xaxis_type='log',
