@@ -22,7 +22,7 @@ from src.models.conv import ConvModel
 from src.data.egfx import EGFxDataset
 from src.inference.runners import SegmentRunner, SequenceRunner
 from src.evaluation.analyzer import MetricAnalyzer
-from src.evaluation.metrics import calculate_all_metrics
+from src.evaluation.metrics import calculate_esr, calculate_mse, phase_response_error
 
 from src.evaluation.visualizer import MetricsVisualizer
 from src.utils.gpu import find_optimal_batch_size, print_gpu_info
@@ -244,7 +244,13 @@ def run_evaluation(
             # Calculate metrics for this specific sample
             # (ensure tensors are on same device/shape for metric calc)
             # Pred/Target likely on CPU from runner
-            sample_metrics = calculate_all_metrics(pred_t, tgt_t, seq_res['sample_rate'])
+            # FAST Metric Calculation (avoid expensive cross-correlation on CPU)
+            print(f"    Calculating fast metrics (ESR, MSE, Phase) for {name}...")
+            sample_metrics = {
+                'esr': calculate_esr(pred_t, tgt_t),
+                'mse': calculate_mse(pred_t, tgt_t),
+                'phase_response_error_rad': phase_response_error(pred_t, tgt_t)
+            }
             
             # Store metrics in result for Logger
             seq_res['metrics'] = sample_metrics
