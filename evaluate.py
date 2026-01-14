@@ -15,6 +15,10 @@ import yaml
 import wandb
 import sys
 from datetime import datetime
+import plotly.io as pio
+
+# Set default renderer to iframe for broader compatibility (Kaggle/Colab)
+pio.renderers.default = "iframe"
 
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
@@ -286,6 +290,11 @@ def run_evaluation(
         if qualitative_sequences:
             print("📤 Logging qualitative results to W&B...")
             logger.log_test_qualitative(qualitative_sequences, visualizer=visualizer)
+            
+            # Log Objective Evaluation Summary
+            if visualizer:
+                logger.log_objective_evaluation(visualizer)
+                
             print("✅ Qualitative logging complete")
         else:
             print("⚠️  No qualitative sequences to log")
