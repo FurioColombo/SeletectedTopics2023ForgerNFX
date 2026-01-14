@@ -5,6 +5,14 @@ import yaml
 import wandb
 import sys
 from datetime import datetime
+import warnings
+import os
+
+# Suppress pydantic warnings
+warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
+
+# Suppress W&B verbose output
+os.environ['WANDB_SILENT'] = 'true'
 
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
@@ -177,22 +185,34 @@ def run_evaluation(
     logger.log_test_quantitative(quantitative_results)
     
     # 4. PHASE 2: Qualitative (Full Sequences)
-    print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
+   print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
     
-    # Find a few test files (independent of limit_samples)
-    all_files = list(input_path.glob("*.wav"))
-    print(f"Found {len(all_files)} audio files in {input_path}")
-    
-    # Always evaluate at least 3 files for qualitative analysis
-    test_files = all_files[:min(3, len(all_files))]
-    print(f"Selected {len(test_files)} files for qualitative analysis")
-    
-    file_pairs = [(f, target_path / f.name) for f in test_files if (target_path / f.name).exists()]
-    print(f"Found {len(file_pairs)} valid file pairs (with matching targets)")
+    # Use the actual files from the dataset (which we know exist)
+    if hasattr(dataset, 'paired_files') and len(dataset.paired_files) > 0:
+        available_files = dataset.paired_files[:min(3, len(dataset.paired_files))]
+        print(f"Selected {len(available_files)} files from dataset for qualitative analysis")
+        
+        # Convert dataset file pairs to full paths
+        file_pairs = [
+            (Path(input_path) / fname, Path(target_path) / fname) 
+            for fname in available_files
+        ]
+    else:
+        # Fallback: try to find files directly
+        all_files = list(Path(input_path).glob("*.wav"))
+        print(f"Found {len(all_files)} audio files in {input_path}")
+        
+        test_files = all_files[:min(3, len(all_files))]
+        print(f"Selected {len(test_files)} files for qualitative analysis")
+        
+        file_pairs = [(f, Path(target_path) / f.name) for f in test_files if (Path(target_path) / f.name).exists()]
+        print(f"Found {len(file_pairs)} valid file pairs (with matching targets)")
     
     if not file_pairs:
         print("⚠️  No file pairs found for qualitative evaluation, skipping...")
     else:
+        print(f"✅ Processing {len(file_pairs)} file pairs for qualitative evaluation")
+        
         seq_runner = SequenceRunner(model, file_pairs, device=device)
         visualizer = MetricsVisualizer(quantitative_results) 
         
@@ -213,7 +233,10 @@ def run_evaluation(
             
             # Display inline in notebook
             print(f"\n📊 Spectral Overlap for {name}:")
-            fig.show()  # This will render in Kaggle notebook
+            try:
+                fig.show()  # This will render in Kaggle notebook
+            except Exception as e:
+                print(f"⚠️  Could not display plot inline: {e}")
             
             # Save WAVs locally
             if save_preds:
