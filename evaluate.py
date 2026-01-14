@@ -1,3 +1,13 @@
+import warnings
+import os
+
+# Suppress pydantic warnings BEFORE any imports that might trigger them
+warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+# Suppress W&B verbose output
+os.environ['WANDB_SILENT'] = 'true'
+
 import argparse
 import torch
 from pathlib import Path
@@ -5,14 +15,6 @@ import yaml
 import wandb
 import sys
 from datetime import datetime
-import warnings
-import os
-
-# Suppress pydantic warnings
-warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
-
-# Suppress W&B verbose output
-os.environ['WANDB_SILENT'] = 'true'
 
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
