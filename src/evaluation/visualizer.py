@@ -350,53 +350,106 @@ class MetricsVisualizer:
         
         return fig
 
+    def _compute_third_octave_bands(self, audio: torch.Tensor, n_fft: int = 4096) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute 1/3 octave band spectrum.
+        """
+        # Compute PSD
+        fft = torch.fft.rfft(audio.flatten(), n=n_fft)
+        power = (torch.abs(fft) ** 2).cpu().numpy()
+        freqs = np.fft.rfftfreq(n_fft, 1/self.sample_rate)
+        
+        # Define 1/3 octave bands
+        # Standard center frequencies (Hz) starting from ~20Hz
+        min_freq = 20
+        max_freq = self.sample_rate / 2
+        
+        # Generating center frequencies
+        # f_c(k) = 1000 * 2^(k/3)
+        # We find range of k
+        k_min = int(3 * np.log2(min_freq / 1000))
+        k_max = int(3 * np.log2(max_freq / 1000))
+        
+        band_centers = []
+        band_powers = []
+        
+        for k in range(k_min, k_max + 1):
+            f_c = 1000 * (2 ** (k / 3))
+            
+            # Band edges
+            f_lower = f_c * (2 ** (-1/6))
+            f_upper = f_c * (2 ** (1/6))
+            
+            # Find indices
+            idx_min = np.searchsorted(freqs, f_lower)
+            idx_max = np.searchsorted(freqs, f_upper)
+            
+            if idx_min >= len(power):
+                break
+                
+            # Sum power in band
+            if idx_min == idx_max:
+                # Single bin or empty (use nearest bin)
+                p_band = power[min(idx_min, len(power)-1)]
+            else:
+                p_band = np.sum(power[idx_min:idx_max])
+                
+            band_centers.append(f_c)
+            band_powers.append(p_band)
+            
+        band_centers = np.array(band_centers)
+        band_vals_db = 10 * np.log10(np.array(band_powers) + 1e-12)
+        
+        return band_centers, band_vals_db
+
     def plot_spectral_overlap(
         self,
         input_audio: torch.Tensor,
         predicted_audio: torch.Tensor,
         target_audio: torch.Tensor,
-        n_fft: int = 2048
+        n_fft: int = 4096 # Increased n_fft for better resolution at low freqs
     ) -> go.Figure:
         """
         Plot overlapping frequency analysis of Input, Target, and Prediction.
-        Shows how well the model approximates the target spectrum compared to clean input.
+        Uses 1/3 Octave smoothing for cleaner visualization.
         """
-        def get_mag_db(audio):
-            # Compute PSD or fast approx
-            fft = torch.fft.rfft(audio.flatten())
-            mag_db = 20 * np.log10(np.abs(fft.cpu().numpy()) + 1e-8)
-            freqs = np.fft.rfftfreq(len(audio.flatten()), 1/self.sample_rate)
-            return freqs, mag_db
-
-        input_freqs, input_db = get_mag_db(input_audio)
-        target_freqs, target_db = get_mag_db(target_audio)
-        pred_freqs, pred_db = get_mag_db(predicted_audio)
         
-        # Smoothen curves slightly for readability if dense? 
-        # For now raw.
+        in_freq, in_db = self._compute_third_octave_bands(input_audio, n_fft)
+        tgt_freq, tgt_db = self._compute_third_octave_bands(target_audio, n_fft)
+        pred_freq, pred_db = self._compute_third_octave_bands(predicted_audio, n_fft)
         
         fig = go.Figure()
         
+        # Plot with "spline" line shape for smooth look connecting the band centers
         fig.add_trace(go.Scatter(
-            x=input_freqs, y=input_db,
-            name='Clean Input', line=dict(color='gray', width=1), opacity=0.5
+            x=in_freq, y=in_db,
+            name='Clean Input', 
+            line=dict(color='gray', width=1, shape='spline'), 
+            opacity=0.5
         ))
+        
         fig.add_trace(go.Scatter(
-            x=target_freqs, y=target_db,
-            name='Target (Reference)', line=dict(color='green', width=2), opacity=0.8
+            x=tgt_freq, y=tgt_db,
+            name='Target (Reference)', 
+            line=dict(color='green', width=3, shape='spline'), 
+            opacity=0.8
         ))
+        
         fig.add_trace(go.Scatter(
-            x=pred_freqs, y=pred_db,
-            name='Prediction', line=dict(color='blue', width=2, dash='dash'), opacity=0.9
+            x=pred_freq, y=pred_db,
+            name='Prediction', 
+            line=dict(color='blue', width=3, dash='dash', shape='spline'), 
+            opacity=0.9
         ))
         
         fig.update_layout(
-            title='Spectrogram Overlap Analysis',
+            title='Spectrogram Overlap (1/3 Octave Smoothed)',
             xaxis_title='Frequency (Hz)',
             yaxis_title='Magnitude (dB)',
             xaxis_type='log',
             template='plotly_white',
-            height=600
+            height=600,
+            xaxis=dict(range=[np.log10(20), np.log10(20000)]) # Correct log range
         )
         return fig
     
