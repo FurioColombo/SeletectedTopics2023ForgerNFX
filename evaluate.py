@@ -253,7 +253,14 @@ def run_evaluation(
             if save_preds:
                 (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
                 import torchaudio
-                torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", seq_res['prediction'].unsqueeze(0), seq_res['sample_rate'])
+                # Ensure 2D (channels, time)
+                pred_wav = seq_res['prediction']
+                if pred_wav.dim() == 1:
+                    pred_wav = pred_wav.unsqueeze(0)
+                elif pred_wav.dim() == 3:
+                     pred_wav = pred_wav.squeeze(0)
+                
+                torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", pred_wav, seq_res['sample_rate'])
             
             qualitative_sequences.append(seq_res)
         
