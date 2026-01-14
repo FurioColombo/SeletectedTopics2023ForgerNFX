@@ -20,6 +20,8 @@ import plotly.io as pio
 # Suppress Kaleido warnings (static image export)
 import warnings
 warnings.filterwarnings("ignore", message=".*Kaleido.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="kaleido")
+warnings.filterwarnings("ignore", message=".*Plotly version.*") # Catch precise version warning
 
 # Set renderer to 'iframe' which is safest for Kaggle to avoid "Wall of Text" JS dumps
 pio.renderers.default = "iframe"
@@ -269,22 +271,21 @@ def run_evaluation(
             # Create the plot (now with metrics in title)
             fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=sample_metrics)
             
-            # Display inline in notebook
+            # Display inline in notebook (Solidified for Kaggle)
             print(f"\n📊 Spectral Overlap for {name}:")
             try:
-                # 'iframe_connected' is the most robust for Kaggle/Colab
-                # It uses CDN-hosted Plotly.js inside an iframe
-                fig.show(renderer="iframe_connected")
+                from IPython.display import display, HTML, Image
+                # Direct HTML injection is the most bulletproof way to render in Kaggle
+                # Bypasses the 'renderer' config which can print raw dicts
+                display(HTML(fig.to_html(include_plotlyjs='cdn')))
             except Exception as e:
                 print(f"⚠️  Could not display interactive plot: {e}")
-                # Fallback to PNG if possible (guaranteed visibility)
+                # Fallback to PNG
                 try:
-                    import IPython.display
-                    img_bytes = fig.to_image(format="png", width=1200, height=600)
-                    IPython.display.display(IPython.display.Image(img_bytes))
-                    print("📷 Displaying static PNG fallback.")
-                except Exception as e2:
-                    print(f"⚠️  Could not display static PNG fallback either: {e2}")
+                    img_bytes = fig.to_image(format="png", width=1600, height=550)
+                    display(Image(img_bytes))
+                except Exception:
+                    pass
             
             # Save WAVs locally
             if save_preds:
