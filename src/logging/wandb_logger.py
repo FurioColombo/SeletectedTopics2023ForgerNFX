@@ -51,14 +51,27 @@ class WandbLogger(BaseLogger):
             return
             
         log_dict = {}
-        # Flatten structure: test/quantitative/esr_mean
+        
+        # Key metrics to track (keep it clean)
+        key_metrics = [
+            'esr', 
+            'mse', 
+            'phase_response_error_rad', 
+            'multi_scale_spectral', 
+            'thd_difference_pct',
+            'frequency_response_error_db'
+        ]
+        
+        # Flatten structure: test/quantitative/esr
         for metric_name, stats in results['metrics'].items():
+            # Only log key metrics
+            if metric_name not in key_metrics:
+                continue
+                
             if isinstance(stats, dict):
-                for stat_name, val in stats.items():
-                    # prioritizing mean for main view
-                    if stat_name == 'mean':
-                        log_dict[f"test/quantitative/{metric_name}"] = val
-                    log_dict[f"test/quantitative/{metric_name}_{stat_name}"] = val
+                # Log only mean for clean dashboard
+                if 'mean' in stats:
+                    log_dict[f"test/quantitative/{metric_name}"] = stats['mean']
             else:
                  log_dict[f"test/quantitative/{metric_name}"] = stats
                  
