@@ -457,8 +457,8 @@ class MetricsVisualizer:
             yaxis_title='Magnitude (dB)',
             xaxis_type='log',
             template='plotly_white',
-            height=600,
-            width=1400,
+            height=550,
+            width=1600,
             xaxis=dict(range=[np.log10(20), np.log10(20000)]) # Correct log range
         )
         return fig
