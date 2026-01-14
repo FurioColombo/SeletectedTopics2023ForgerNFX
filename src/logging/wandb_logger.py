@@ -114,6 +114,11 @@ class WandbLogger(BaseLogger):
         
         for idx, seq in enumerate(sequences):
             name = seq['name']
+            # Use provided index if available, else standard enumerate
+            seq_idx = seq.get('index', idx)
+            # e.g. "01_TubeScreamer_01"
+            group_name = f"{seq_idx+1:02d}_{name}"
+            
             sr = seq['sample_rate']
             metrics = seq.get('metrics', {})
             
@@ -132,12 +137,12 @@ class WandbLogger(BaseLogger):
                 fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=metrics)
                 
                 # Log to dedicated section per sample
-                plot_dict[f"test/qualitative/{name}/spectrogram"] = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
+                plot_dict[f"test/qualitative/{group_name}/spectrogram"] = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
             
             # 2. Log Audios to dedicated section per sample
-            plot_dict[f"test/qualitative/{name}/audio_input"] = wandb.Audio(inp_np, sample_rate=sr, caption="Input")
-            plot_dict[f"test/qualitative/{name}/audio_target"] = wandb.Audio(tgt_np, sample_rate=sr, caption="Target")
-            plot_dict[f"test/qualitative/{name}/audio_prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption="Prediction")
+            plot_dict[f"test/qualitative/{group_name}/audio_input"] = wandb.Audio(inp_np, sample_rate=sr, caption="Input")
+            plot_dict[f"test/qualitative/{group_name}/audio_target"] = wandb.Audio(tgt_np, sample_rate=sr, caption="Target")
+            plot_dict[f"test/qualitative/{group_name}/audio_prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption="Prediction")
         
         # Log all qualitative assets
         wandb.log(plot_dict)
