@@ -23,7 +23,7 @@ class LSTMModel(BaseAudioModel):
         # x shape: (batch, channels, time) -> need (batch, time, channels) for LSTM
         # Assuming input is (batch, 1, time)
         if x.shape[1] == 1:
-            x = x.transpose(1, 2)
+            x = x.transpose(1, 2).contiguous()  # Ensure contiguous after transpose
             
         lstm_out, _ = self.lstm(x)
         out = self.dense(lstm_out)
