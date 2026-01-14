@@ -100,16 +100,22 @@ class WandbLogger(BaseLogger):
             
         print("📤 Uploading qualitative results to W&B...")
         
-        # Create Table
-        columns = ["name", "audio_input", "audio_target", "audio_prediction", "spectrogram_overlap"]
+        # Create Unified Table
+        # Columns: Name, Audio (In, Tgt, Pred), Spectral Plot, Key Metrics
+        columns = [
+            "name", 
+            "audio_input", "audio_target", "audio_prediction", 
+            "spectral_analysis",
+            "esr", "mse", "phase_error"
+        ]
         table = wandb.Table(columns=columns)
         
-        # Also log plots as standalone images for better visibility
         plot_dict = {}
         
         for idx, seq in enumerate(sequences):
             name = seq['name']
             sr = seq['sample_rate']
+            metrics = seq.get('metrics', {}) # Get per-sample metrics if available
             
             # Prepare audio for W&B
             inp_np = self._prepare_audio_for_wandb(seq['input'])
@@ -119,39 +125,32 @@ class WandbLogger(BaseLogger):
             # Create Plot if visualizer provided
             plot_html = None
             if visualizer:
-                # Visualizer expects tensors (likely (1, T) or (C, T))
-                # We reuse the raw seq data which we know visualizer handles (or handled before)
-                # But to be safe, let's pass tensor versions of what we just cleaned clean, 
-                # ensuring visualizer gets standard input.
-                # Actually, visualizer.plot_spectral_overlap expects Tensor (C, T) or (T).
-                # Let's trust visualizer handles the original seq['input'] tensors fine as it did in the traceback before hitting wandb.Audio
-                
                 inp_t = seq['input'] if torch.is_tensor(seq['input']) else torch.from_numpy(seq['input'])
                 tgt_t = seq['target'] if torch.is_tensor(seq['target']) else torch.from_numpy(seq['target'])
                 pred_t = seq['prediction'] if torch.is_tensor(seq['prediction']) else torch.from_numpy(seq['prediction'])
 
-                # Generate spectral overlap plot
-                fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t)
+                # Generate spectral overlap plot (Pass metrics for title embedding)
+                fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=metrics)
                 plot_html = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
                 
-                # Also log as standalone plotly chart (more visible in W&B)
-                plot_dict[f"test/qualitative/spectral_overlap/{name}"] = fig
+                # OPTIONAL: You can still log the standalone plot if you really want it in the "Images" tab, 
+                # but if you want to declutter, rely on the Table.
+                # plot_dict[f"test/qualitative/spectral_overlap/{name}"] = fig
             
-            # Log individual audio files as well (easier to find than in table)
-            plot_dict[f"test/qualitative/audio/{name}/input"] = wandb.Audio(inp_np, sample_rate=sr, caption=f"{name}_input")
-            plot_dict[f"test/qualitative/audio/{name}/target"] = wandb.Audio(tgt_np, sample_rate=sr, caption=f"{name}_target")
-            plot_dict[f"test/qualitative/audio/{name}/prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption=f"{name}_prediction")
-            
+            # Add Row to Unified Table
             table.add_data(
                 name,
                 wandb.Audio(inp_np, sample_rate=sr, caption="Input"),
                 wandb.Audio(tgt_np, sample_rate=sr, caption="Target"),
                 wandb.Audio(pred_np, sample_rate=sr, caption="Prediction"),
-                plot_html
+                plot_html,
+                metrics.get('esr', 0),
+                metrics.get('mse', 0),
+                metrics.get('phase_response_error_rad', 0)
             )
         
-        # Log everything at once
-        plot_dict["test/qualitative_analysis"] = table
+        # Log ONLY the table (and minimal other stuff if needed)
+        plot_dict["test/qualitative_report"] = table
         wandb.log(plot_dict)
         
     def finish(self):
