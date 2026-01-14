@@ -17,8 +17,8 @@ import sys
 from datetime import datetime
 import plotly.io as pio
 
-# Set default renderer to iframe for broader compatibility (Kaggle/Colab)
-pio.renderers.default = "iframe"
+# Set renderer to 'notebook' which injects JS directly (Works best in Kaggle)
+pio.renderers.default = "notebook"
 
 from src.logging.wandb_logger import WandbLogger
 from src.models.lstm import LSTMModel
@@ -236,8 +236,11 @@ def run_evaluation(
         # Collect all qualitative results first
         qualitative_sequences = []
         
-        for seq_res in seq_runner.run():
+        for idx, seq_res in enumerate(seq_runner.run()):
             name = seq_res['name']
+            
+            # Store order index for grouping in W&B
+            seq_res['index'] = idx
             print(f"  Processing {name}...")
             
             # Generate and display spectral overlap plot INLINE
