@@ -185,7 +185,7 @@ def run_evaluation(
     logger.log_test_quantitative(quantitative_results)
     
     # 4. PHASE 2: Qualitative (Full Sequences)
-   print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
+    print("\n👂 Phase 2: Qualitative Evaluation (Full Sequences)")
     
     # Use the actual files from the dataset (which we know exist)
     if hasattr(dataset, 'paired_files') and len(dataset.paired_files) > 0:
