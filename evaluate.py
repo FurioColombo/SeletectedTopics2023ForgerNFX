@@ -22,8 +22,48 @@ from src.models.conv import ConvModel
 from src.data.egfx import EGFxDataset
 from src.inference.runners import SegmentRunner, SequenceRunner
 from src.evaluation.analyzer import MetricAnalyzer
-from src.evaluation.visualizer import MetricsVisualizer
-from src.utils.gpu import find_optimal_batch_size, print_gpu_info
+from src.evaluation.metrics import calculate_all_metrics
+
+        for seq_res in seq_runner.run():
+            name = seq_res['name']
+            print(f"  Processing {name}...")
+            
+            # Generate and display spectral overlap plot INLINE
+            inp_t = seq_res['input']
+            tgt_t = seq_res['target']
+            pred_t = seq_res['prediction']
+            
+            # Calculate metrics for this specific sample
+            # (ensure tensors are on same device/shape for metric calc)
+            sample_metrics = calculate_all_metrics(pred_t, tgt_t, seq_res['sample_rate'])
+            
+            # Store metrics in result for Logger
+            seq_res['metrics'] = sample_metrics
+            
+            # Create the plot (now with metrics in title)
+            fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=sample_metrics)
+            
+            # Display inline in notebook
+            print(f"\n📊 Spectral Overlap for {name}:")
+            try:
+                fig.show()  # This will render in Kaggle notebook
+            except Exception as e:
+                print(f"⚠️  Could not display plot inline: {e}")
+            
+            # Save WAVs locally
+            if save_preds:
+                (output_dir / "predictions").mkdir(exist_ok=True, parents=True)
+                import torchaudio
+                # Ensure 2D (channels, time)
+                pred_wav = seq_res['prediction']
+                if pred_wav.dim() == 1:
+                    pred_wav = pred_wav.unsqueeze(0)
+                elif pred_wav.dim() == 3:
+                     pred_wav = pred_wav.squeeze(0)
+                
+                torchaudio.save(output_dir / "predictions" / f"{name}_pred.wav", pred_wav, seq_res['sample_rate'])
+            
+            qualitative_sequences.append(seq_res)
 
 def load_config(path: str):
     with open(path, 'r') as f:
@@ -239,8 +279,16 @@ def run_evaluation(
             tgt_t = seq_res['target']
             pred_t = seq_res['prediction']
             
-            # Create the plot
-            fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t)
+            # Calculate metrics for this specific sample
+            # (ensure tensors are on same device/shape for metric calc)
+            # Pred/Target likely on CPU from runner
+            sample_metrics = calculate_all_metrics(pred_t, tgt_t, seq_res['sample_rate'])
+            
+            # Store metrics in result for Logger
+            seq_res['metrics'] = sample_metrics
+            
+            # Create the plot (now with metrics in title)
+            fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=sample_metrics)
             
             # Display inline in notebook
             print(f"\n📊 Spectral Overlap for {name}:")
