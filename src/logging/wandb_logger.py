@@ -64,6 +64,23 @@ class WandbLogger(BaseLogger):
                  
         wandb.log(log_dict)
         
+    def _prepare_audio_for_wandb(self, audio_data):
+        """Helper to convert audio to format accepted by wandb.Audio (numpy, (time,), float32)"""
+        # 1. Convert to numpy
+        if torch.is_tensor(audio_data):
+            audio_data = audio_data.detach().cpu().float().numpy()
+        
+        # 2. Squeeze extra dimensions (1, T) -> (T,)
+        if audio_data.ndim > 1:
+            # If shape is (Channels, Time) and Channels is 1, squeeze it
+            if audio_data.shape[0] == 1:
+                audio_data = audio_data.flatten()
+            elif audio_data.shape[0] < audio_data.shape[1]: 
+                # Likely (C, T) -> Transpose to (T, C) for soundfile/wandb if stereo
+                audio_data = audio_data.T
+                
+        return audio_data
+
     def log_test_qualitative(self, sequences: List[Dict[str, Any]], visualizer=None):
         if not sequences:
             return
@@ -81,19 +98,25 @@ class WandbLogger(BaseLogger):
             name = seq['name']
             sr = seq['sample_rate']
             
-            # Convert tensors to numpy if needed
-            inp = seq['input'].numpy() if torch.is_tensor(seq['input']) else seq['input']
-            tgt = seq['target'].numpy() if torch.is_tensor(seq['target']) else seq['target']
-            pred = seq['prediction'].numpy() if torch.is_tensor(seq['prediction']) else seq['prediction']
+            # Prepare audio for W&B
+            inp_np = self._prepare_audio_for_wandb(seq['input'])
+            tgt_np = self._prepare_audio_for_wandb(seq['target'])
+            pred_np = self._prepare_audio_for_wandb(seq['prediction'])
             
             # Create Plot if visualizer provided
             plot_html = None
             if visualizer:
-                # Convert back to tensor for visualizer if needed
-                inp_t = torch.tensor(inp) if not torch.is_tensor(seq['input']) else seq['input']
-                tgt_t = torch.tensor(tgt) if not torch.is_tensor(seq['target']) else seq['target']
-                pred_t = torch.tensor(pred) if not torch.is_tensor(seq['prediction']) else seq['prediction']
+                # Visualizer expects tensors (likely (1, T) or (C, T))
+                # We reuse the raw seq data which we know visualizer handles (or handled before)
+                # But to be safe, let's pass tensor versions of what we just cleaned clean, 
+                # ensuring visualizer gets standard input.
+                # Actually, visualizer.plot_spectral_overlap expects Tensor (C, T) or (T).
+                # Let's trust visualizer handles the original seq['input'] tensors fine as it did in the traceback before hitting wandb.Audio
                 
+                inp_t = seq['input'] if torch.is_tensor(seq['input']) else torch.from_numpy(seq['input'])
+                tgt_t = seq['target'] if torch.is_tensor(seq['target']) else torch.from_numpy(seq['target'])
+                pred_t = seq['prediction'] if torch.is_tensor(seq['prediction']) else torch.from_numpy(seq['prediction'])
+
                 # Generate spectral overlap plot
                 fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t)
                 plot_html = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
@@ -102,15 +125,15 @@ class WandbLogger(BaseLogger):
                 plot_dict[f"test/qualitative/spectral_overlap/{name}"] = fig
             
             # Log individual audio files as well (easier to find than in table)
-            plot_dict[f"test/qualitative/audio/{name}/input"] = wandb.Audio(inp, sample_rate=sr, caption=f"{name}_input")
-            plot_dict[f"test/qualitative/audio/{name}/target"] = wandb.Audio(tgt, sample_rate=sr, caption=f"{name}_target")
-            plot_dict[f"test/qualitative/audio/{name}/prediction"] = wandb.Audio(pred, sample_rate=sr, caption=f"{name}_prediction")
+            plot_dict[f"test/qualitative/audio/{name}/input"] = wandb.Audio(inp_np, sample_rate=sr, caption=f"{name}_input")
+            plot_dict[f"test/qualitative/audio/{name}/target"] = wandb.Audio(tgt_np, sample_rate=sr, caption=f"{name}_target")
+            plot_dict[f"test/qualitative/audio/{name}/prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption=f"{name}_prediction")
             
             table.add_data(
                 name,
-                wandb.Audio(inp, sample_rate=sr, caption="Input"),
-                wandb.Audio(tgt, sample_rate=sr, caption="Target"),
-                wandb.Audio(pred, sample_rate=sr, caption="Prediction"),
+                wandb.Audio(inp_np, sample_rate=sr, caption="Input"),
+                wandb.Audio(tgt_np, sample_rate=sr, caption="Target"),
+                wandb.Audio(pred_np, sample_rate=sr, caption="Prediction"),
                 plot_html
             )
         
