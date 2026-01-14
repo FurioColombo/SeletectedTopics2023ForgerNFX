@@ -133,7 +133,7 @@ class SequenceRunner(InferenceRunner):
                 # we will try to pass the whole sequence. Torch LSTMs handle the loop internally efficiently.
                 # This achieves "stateful inference" implicitly because the LSTM unrolls over the full sequence.
                 
-                input_tensor = input_wav.unsqueeze(0).to(self.device) # (1, 1, time)
+                input_tensor = input_wav.unsqueeze(0).to(self.device).contiguous() # (1, 1, time)
                 
                 try:
                     # Try full sequence inference
