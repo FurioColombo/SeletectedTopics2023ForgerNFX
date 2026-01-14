@@ -137,13 +137,18 @@ class WandbLogger(BaseLogger):
                 fig = visualizer.plot_spectral_overlap(inp_t, pred_t, tgt_t, metrics=metrics)
                 
                 # Log to dedicated section per sample
-                # Using top-level prefix "Sample 01: Name" to force distinct sections
+                # Using top-level prefix "Sample 01_Name" to force distinct sections
                 plot_dict[f"Sample {group_name}/Spectrogram"] = wandb.Html(fig.to_html(include_plotlyjs='cdn'))
             
-            # 2. Log Audios
-            plot_dict[f"Sample {group_name}/Input"] = wandb.Audio(inp_np, sample_rate=sr, caption="Input")
-            plot_dict[f"Sample {group_name}/Target"] = wandb.Audio(tgt_np, sample_rate=sr, caption="Target")
-            plot_dict[f"Sample {group_name}/Prediction"] = wandb.Audio(pred_np, sample_rate=sr, caption="Prediction")
+            # 2. Log Audios COMPACTLY in a Table
+            # This forces them to be side-by-side and small, avoiding "huge audio" widgets
+            audio_table = wandb.Table(columns=["Input", "Target", "Prediction"])
+            audio_table.add_data(
+                wandb.Audio(inp_np, sample_rate=sr, caption="Input"),
+                wandb.Audio(tgt_np, sample_rate=sr, caption="Target"),
+                wandb.Audio(pred_np, sample_rate=sr, caption="Prediction")
+            )
+            plot_dict[f"Sample {group_name}/Audio_Comparison"] = audio_table
         
         # Log all qualitative assets
         wandb.log(plot_dict)
