@@ -272,9 +272,19 @@ def run_evaluation(
             # Display inline in notebook
             print(f"\n📊 Spectral Overlap for {name}:")
             try:
-                fig.show()  # This will render in Kaggle notebook
+                # 'iframe_connected' is the most robust for Kaggle/Colab
+                # It uses CDN-hosted Plotly.js inside an iframe
+                fig.show(renderer="iframe_connected")
             except Exception as e:
-                print(f"⚠️  Could not display plot inline: {e}")
+                print(f"⚠️  Could not display interactive plot: {e}")
+                # Fallback to PNG if possible (guaranteed visibility)
+                try:
+                    import IPython.display
+                    img_bytes = fig.to_image(format="png", width=1200, height=600)
+                    IPython.display.display(IPython.display.Image(img_bytes))
+                    print("📷 Displaying static PNG fallback.")
+                except Exception as e2:
+                    print(f"⚠️  Could not display static PNG fallback either: {e2}")
             
             # Save WAVs locally
             if save_preds:
