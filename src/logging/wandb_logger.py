@@ -46,36 +46,19 @@ class WandbLogger(BaseLogger):
         """
         Expects results dict from MetricAnalyzer.get_aggregated_results()
         Structure: {'metrics': {'esr': {'mean': 0.1, ...}, ...}, ...}
+        
+        USER REQUEST: Remove individual scalar metric logging as it duplicates 
+        information found in the 'Metrics Overview' plot and clutters the dashboard.
         """
-        if 'metrics' not in results:
-            return
-            
-        log_dict = {}
+        pass
         
-        # Key metrics to track (keep it clean)
-        key_metrics = [
-            'esr', 
-            'mse', 
-            'phase_response_error_rad', 
-            'multi_scale_spectral', 
-            'thd_difference_pct',
-            'frequency_response_error_db'
-        ]
-        
-        # Flatten structure: test/quantitative/esr
-        for metric_name, stats in results['metrics'].items():
-            # Only log key metrics
-            if metric_name not in key_metrics:
-                continue
-                
-            if isinstance(stats, dict):
-                # Log only mean for clean dashboard
-                if 'mean' in stats:
-                    log_dict[f"test/quantitative/{metric_name}"] = stats['mean']
-            else:
-                 log_dict[f"test/quantitative/{metric_name}"] = stats
-                 
-        wandb.log(log_dict)
+        # Original logging logic disabled:
+        # if 'metrics' not in results:
+        #     return
+        #     
+        # log_dict = {}
+        # ... logic to log "test/quantitative/esr" etc. ...
+        # wandb.log(log_dict)
         
     def _prepare_audio_for_wandb(self, audio_data):
         """Helper to convert audio to format accepted by wandb.Audio (numpy, (time,), float32)"""

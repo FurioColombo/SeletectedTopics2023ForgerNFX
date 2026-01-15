@@ -2,8 +2,8 @@ notebook_slug: "forger-nfx-training"
 notebook_title: "Forger NFX Training"
 device: cuda
 batch_size: 64
-epochs: 2
-num_workers: 2
+epochs: 100
+num_workers: 4
 data_root: "/kaggle/input/egfx-dataset"
 checkpoint_dir: "/kaggle/working/checkpoints"
 metrics_out: "/kaggle/working/metrics.json"
