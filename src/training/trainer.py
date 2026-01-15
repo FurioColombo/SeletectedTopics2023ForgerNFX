@@ -46,9 +46,10 @@ class Trainer:
                 mode='min'
             )
         
-    def train_epoch(self) -> float:
+    def train_epoch(self) -> dict:
         self.model.train()
         total_loss = 0.0
+        total_breakdown = {}
         
         # Custom printer for Kaggle transparency without spam
         # pbar = tqdm(self.train_loader, desc="Training", leave=False, mininterval=10.0) 
@@ -62,6 +63,11 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             
+            # Accumulate breakdown info if available
+            if hasattr(self.loss_fn, 'last_breakdown') and self.loss_fn.last_breakdown:
+                for name, val in self.loss_fn.last_breakdown.items():
+                    total_breakdown[name] = total_breakdown.get(name, 0.0) + val
+            
             # Step Scheduler (Batch)
             self.scheduler.step_batch(batch_idx)
 
@@ -72,7 +78,13 @@ class Trainer:
                 current_lr = self.optimizer.param_groups[0]['lr']
                 print(f"  Batch {batch_idx}/{len(self.train_loader)} - Loss: {loss.item():.3f} - LR: {current_lr:.2e}")
             
-        return total_loss / len(self.train_loader)
+        # Averages
+        avg_loss = total_loss / len(self.train_loader)
+        result = {'combined_loss': avg_loss}
+        for k, v in total_breakdown.items():
+            result[k] = v / len(self.train_loader)
+            
+        return result
         
     def validate(self) -> tuple[float, dict]:
         self.model.eval()
@@ -106,7 +118,8 @@ class Trainer:
         # Using mininterval helps reduce log spam
         epoch_pbar = tqdm(range(self.config.epochs), desc="Epochs", mininterval=10.0)
         for epoch in epoch_pbar:
-            train_loss = self.train_epoch()
+            train_metrics = self.train_epoch()
+            train_loss = train_metrics['combined_loss'] # Extract main loss for backward compat logic
             val_loss, val_metrics = self.validate()
             
             # Step Scheduler (Epoch)
@@ -122,7 +135,7 @@ class Trainer:
             
             if callbacks:
                 for cb in callbacks:
-                    cb(epoch, train_loss, val_loss, val_metrics)
+                    cb(epoch, train_metrics, val_loss, val_metrics)
             
             # Early Stopping Check
             if self.early_stopping:
