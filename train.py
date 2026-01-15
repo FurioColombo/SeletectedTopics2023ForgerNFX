@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--output_dir", type=str, default="runs", help="Output directory for checkpoints")
-    parser.add_argument("--lr", type=float, default=0.00001, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate")
     parser.add_argument("--metrics_out", type=str, default=None, help="Path to save metrics JSON")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
     args = parser.parse_args()
@@ -49,17 +49,10 @@ def main():
     
     if args.dataset_root: args.dataset_root = args.dataset_root # Ensure this is passed if needed, mainly for data loader
     
-    # Force CLI overrides if provided distinct from defaults
-    # Note: Argparse defaults make it hard to distinguish 'not provided' vs 'default'
-    # We assume if the user runs with explicit flags they want them.
-    # For now, batch_size and lr from CLI (if default) might override Config.
-    # To properly handle this, we should check if they were passed, but simplifying:
-    # If config loaded from file, we might trust it more than CLI defaults?
-    # Common pattern: Config File > Defaults. CLI Flags > Config File.
-    
-    # Let's assume passed args should override.
+    # Force CLI overrides ONLY if provided (not default)
     config.training.batch_size = args.batch_size
-    config.training.learning_rate = args.lr
+    if args.lr is not None:
+        config.training.learning_rate = args.lr
     if args.output_dir != "runs": config.output_dir = args.output_dir
     
     print(f"Configuration loaded: Model={config.model.name}, Epochs={config.training.epochs}")
