@@ -10,3 +10,14 @@ metrics_out: "/kaggle/working/metrics.json"
 log_dir: "/kaggle/working/logs"
 repo_url: "https://github.com/FurioColombo/SeletectedTopics2023ForgerNFX.git"
 repo_branch: "2025"
+repo_branch: "2025"
+
+# Training Hyperparameters
+learning_rate: 0.0005        # Initial step size
+scheduler_type: "warmup_plateau"
+scheduler_params:
+  warmup_steps: 100         # Linear warmup
+  mode: "min"               # Reduce when val loss stops decreasing
+  factor: 0.5               # Reduce LR by half
+  patience: 5               # Wait 5 epochs before reducing
+  min_lr: 1.0e-6            # Minimum LR floor
