@@ -184,18 +184,34 @@ def main():
 
     import wandb # Import for explicit type checking if needed, though logger handles it
     
-    def checkpoint_callback(epoch, train_loss, val_loss, val_metrics=None):
+    def checkpoint_callback(epoch, train_metrics, val_loss, val_metrics=None):
         # Log to W&B / Local
         current_lr = optimizer.param_groups[0]['lr']
+        
+        # Handle dict vs float (backward compatibility)
+        if isinstance(train_metrics, dict):
+            t_loss = train_metrics['combined_loss']
+        else:
+            t_loss = train_metrics
+            train_metrics = {'combined_loss': t_loss}
+
+        # Organized Logging Structure
         log_dict = {
-            "train_loss": train_loss,
-            "val_loss": val_loss,
-            "epoch": epoch + 1,
-            "learning_rate": current_lr
+            "run/epoch": epoch + 1,
+            "run/learning_rate": current_lr,
+            "val/combined_loss": val_loss, # Main validation loss (renamed for clarity)
         }
+        
+        # Log all training component losses
+        for k, v in train_metrics.items():
+            # e.g. train/combined_loss, train/MSELoss, train/ESRLoss
+            log_dict[f"train/{k}"] = v
+
         if val_metrics:
             for k, v in val_metrics.items():
-                log_dict[f"val/{k}"] = v
+                # Ensure val prefix
+                key = k if k.startswith("val/") else f"val/{k}"
+                log_dict[key] = v
         
         # Log Audio Samples during Checkpoint
         if logger.use_wandb and logger.run and fixed_val_samples:
@@ -247,7 +263,7 @@ def main():
         # Keep metrics for backward compatibility with kaggle_train.py
         metrics["history"].append({
             "epoch": epoch + 1,
-            "train_loss": train_loss,
+            "train_loss": t_loss,
             "val_loss": val_loss,
             "extra": val_metrics
         })
