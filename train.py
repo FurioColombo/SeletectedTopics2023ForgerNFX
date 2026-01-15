@@ -31,8 +31,8 @@ def main():
     parser.add_argument("--input_folder", type=str, default="Clean", help="Name of input folder (e.g. Clean)")
     parser.add_argument("--target_folder", type=str, required=True, help="Name of target folder (e.g. TubeScreamer)")
     parser.add_argument("--model", type=str, default="lstm", choices=["lstm", "conv"], help="Model type")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--epochs", type=int, default=None, help="Number of epochs")
+    parser.add_argument("--batch_size", type=int, default=None, help="Batch size")
     parser.add_argument("--output_dir", type=str, default="runs", help="Output directory for checkpoints")
     parser.add_argument("--lr", type=float, default=None, help="Learning rate")
     parser.add_argument("--metrics_out", type=str, default=None, help="Path to save metrics JSON")
@@ -43,14 +43,15 @@ def main():
     from src.config.config import load_config
     config = load_config(args.config)
     
-    # CLI args override config file
+    # CLI args override config file ONLY if provided
     if args.model: config.model.name = args.model
-    if args.epochs != 10: config.training.epochs = args.epochs # Argument parser default is 10
+    if args.epochs is not None: config.training.epochs = args.epochs
     
     if args.dataset_root: args.dataset_root = args.dataset_root # Ensure this is passed if needed, mainly for data loader
     
     # Force CLI overrides ONLY if provided (not default)
-    config.training.batch_size = args.batch_size
+    if args.batch_size is not None:
+        config.training.batch_size = args.batch_size
     if args.lr is not None:
         config.training.learning_rate = args.lr
     if args.output_dir != "runs": config.output_dir = args.output_dir
