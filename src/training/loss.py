@@ -31,11 +31,16 @@ class CombinedLoss(AudioLoss):
     def __init__(self, losses: dict[AudioLoss, float]):
         super().__init__()
         self.losses = losses
+        self.last_breakdown = {}
         
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         total_loss = 0.0
+        self.last_breakdown = {}
         for loss_fn, weight in self.losses.items():
-            total_loss += weight * loss_fn(pred, target)
+            l = loss_fn(pred, target)
+            name = loss_fn.__class__.__name__
+            self.last_breakdown[name] = l.item()
+            total_loss += weight * l
         return total_loss
 
 class MultiScaleSpectralLoss(AudioLoss):
