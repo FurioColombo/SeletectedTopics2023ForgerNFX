@@ -402,6 +402,22 @@ class MetricsVisualizer:
         
         return band_centers, band_vals_db
 
+    def _get_a_weighting(self, freqs: np.ndarray) -> np.ndarray:
+        """
+        Calculate A-weighting in dB for given frequencies.
+        RA(f) = (12194^2 * f^4) / ((f^2 + 20.6^2) * sqrt((f^2 + 107.7^2)(f^2 + 737.9^2)) * (f^2 + 12194^2))
+        A(f) = 20 log10(RA(f)) + 2.00
+        """
+        f_sq = freqs ** 2
+        const = 12194.217 ** 2
+        
+        numerator = const * (f_sq ** 2)
+        denominator = (f_sq + 20.598997**2) * np.sqrt((f_sq + 107.65265**2) * (f_sq + 737.86223**2)) * (f_sq + 12194.217**2)
+        
+        # Avoid division by zero
+        weights = 2.0 + 20 * np.log10(numerator / (denominator + 1e-12) + 1e-12)
+        return weights
+
     def plot_spectral_overlap(
         self,
         input_audio: torch.Tensor,
@@ -412,38 +428,43 @@ class MetricsVisualizer:
     ) -> go.Figure:
         """
         Plot overlapping frequency analysis of Input, Target, and Prediction.
-        Uses 1/3 Octave smoothing for cleaner visualization.
+        Uses 1/3 Octave smoothing AND A-Weighting for perceptual relevance.
         """
         
         in_freq, in_db = self._compute_third_octave_bands(input_audio, n_fft)
         tgt_freq, tgt_db = self._compute_third_octave_bands(target_audio, n_fft)
         pred_freq, pred_db = self._compute_third_octave_bands(predicted_audio, n_fft)
         
+        # Apply A-Weighting
+        in_db += self._get_a_weighting(in_freq)
+        tgt_db += self._get_a_weighting(tgt_freq)
+        pred_db += self._get_a_weighting(pred_freq)
+        
         fig = go.Figure()
         
         # Plot with "spline" line shape for smooth look connecting the band centers
         fig.add_trace(go.Scatter(
             x=in_freq, y=in_db,
-            name='Clean Input', 
+            name='Clean Input (dBA)', 
             line=dict(color='gray', width=1, shape='spline'), 
             opacity=0.5
         ))
         
         fig.add_trace(go.Scatter(
             x=tgt_freq, y=tgt_db,
-            name='Target (Reference)', 
+            name='Target (dBA)', 
             line=dict(color='green', width=3, shape='spline'), 
             opacity=0.8
         ))
         
         fig.add_trace(go.Scatter(
             x=pred_freq, y=pred_db,
-            name='Prediction', 
+            name='Prediction (dBA)', 
             line=dict(color='blue', width=3, dash='dash', shape='spline'), 
             opacity=0.9
         ))
         
-        title_text = 'Spectrogram Overlap (1/3 Octave Smoothed)'
+        title_text = 'Spectrogram Overlap (1/3 Octave Smoothed, A-Weighted)'
         if metrics:
             # Add key metrics to subtitle
             # e.g. "ESR: 0.05 | MSE: 0.002 | Phase: 0.5 rad"
@@ -454,7 +475,7 @@ class MetricsVisualizer:
         fig.update_layout(
             title=title_text,
             xaxis_title='Frequency (Hz)',
-            yaxis_title='Magnitude (dB)',
+            yaxis_title='Magnitude (dBA)',
             xaxis_type='log',
             template='plotly_white',
             height=550,
