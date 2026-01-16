@@ -12,7 +12,7 @@ repo_url: "https://github.com/FurioColombo/SeletectedTopics2023ForgerNFX.git"
 repo_branch: "2025"
 
 # Training Hyperparameters
-learning_rate: 0.003        # Initial step size
+learning_rate: 0.0008        # Initial step size
 scheduler_type: "warmup_plateau"
 scheduler_params:
   warmup_steps: 100         # Linear warmup
@@ -21,6 +21,7 @@ scheduler_params:
   patience: 4               # Wait epochs before reducing
   min_lr: 1.0e-6            # Minimum LR floor
 
-loss_weights:
+len_weights:
   mse: 100.0
   esr: 0.5
+  spectral: 1.0
