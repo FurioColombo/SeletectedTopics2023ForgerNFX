@@ -102,6 +102,7 @@ def main():
     # Defaults
     mse_weight = 100.0
     esr_weight = 0.5
+    spectral_weight = 0.0 # Default off unless in config
     
     # distinct loading logic to handle potential missing Pydantic fields
     loss_weights_found = False
@@ -112,6 +113,7 @@ def main():
         if isinstance(w, dict):
             mse_weight = float(w.get('mse', mse_weight))
             esr_weight = float(w.get('esr', esr_weight))
+            spectral_weight = float(w.get('spectral', spectral_weight))
             loss_weights_found = True
             
     # 2. Key Fallback: functions if Pydantic model ignores 'loss_weights'
@@ -123,16 +125,25 @@ def main():
                 if 'loss_weights' in raw_conf:
                     mse_weight = float(raw_conf['loss_weights'].get('mse', mse_weight))
                     esr_weight = float(raw_conf['loss_weights'].get('esr', esr_weight))
-                    print(f"Loaded loss weights from YAML: MSE={mse_weight}, ESR={esr_weight}")
+                    spectral_weight = float(raw_conf['loss_weights'].get('spectral', spectral_weight))
+                    print(f"Loaded loss weights from YAML: MSE={mse_weight}, ESR={esr_weight}, Spectral={spectral_weight}")
         except Exception as e:
             print(f"Warning: Failed to parse raw config for loss weights: {e}")
 
-    print(f"Training with Loss Weights -> MSE: {mse_weight}, ESR: {esr_weight}")
+    print(f"Training with Loss Weights -> MSE: {mse_weight}, ESR: {esr_weight}, Spectral: {spectral_weight}")
 
-    loss_fn = CombinedLoss({
+    # Build Loss Ensemble
+    losses = {
         MSELoss(): mse_weight,
         ESRLoss(): esr_weight
-    })
+    }
+    
+    if spectral_weight > 0:
+        # Note: MultiScaleSpectralLoss uses FFT logic which may need specific device handling
+        # It's an nn.Module, so Trainer keeps it on device.
+        losses[MultiScaleSpectralLoss()] = spectral_weight
+
+    loss_fn = CombinedLoss(losses)
     
     # Secondary validation metrics
     validation_loss_fns = {
