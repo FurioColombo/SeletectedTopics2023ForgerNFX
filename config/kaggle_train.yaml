@@ -22,6 +22,6 @@ scheduler_params:
   min_lr: 1.0e-6            # Minimum LR floor
 
 loss_weights:
-  mse: 100.0
-  esr: 0.5
-  spectral: 1.0
+  mse: 1.0
+  esr: 0.01
+  spectral: 0.0
