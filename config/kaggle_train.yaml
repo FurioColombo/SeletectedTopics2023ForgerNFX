@@ -2,7 +2,7 @@ notebook_slug: "forger-nfx-training"
 notebook_title: "Forger NFX Training"
 device: cuda
 batch_size: 64
-epochs: 50
+epochs: 100
 num_workers: 4
 data_root: "/kaggle/input/egfx-dataset"
 checkpoint_dir: "/kaggle/working/checkpoints"
@@ -12,7 +12,7 @@ repo_url: "https://github.com/FurioColombo/SeletectedTopics2023ForgerNFX.git"
 repo_branch: "2025"
 
 # Training Hyperparameters
-learning_rate: 0.0008        # Initial step size
+learning_rate: 0.001        # Initial step size
 scheduler_type: "warmup_plateau"
 scheduler_params:
   warmup_steps: 100         # Linear warmup
@@ -24,4 +24,4 @@ scheduler_params:
 loss_weights:
   mse: 1.0
   esr: 0.01
-  spectral: 0.0
+  spectral: 1.0
