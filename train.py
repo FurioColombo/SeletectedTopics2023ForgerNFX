@@ -95,11 +95,43 @@ def main():
     # 4. Setup Training
     # 4. Setup Training
     # Loss: Combination of MSE and ESR
+    # Loss: Combination of MSE and ESR
     from src.training.loss import MSELoss, ESRLoss, CombinedLoss, MultiScaleSpectralLoss
     
+    # Determine Loss Weights
+    # Defaults
+    mse_weight = 100.0
+    esr_weight = 0.5
+    
+    # distinct loading logic to handle potential missing Pydantic fields
+    loss_weights_found = False
+    
+    # 1. Try Config Object
+    if hasattr(config.training, 'loss_weights') and config.training.loss_weights:
+        w = config.training.loss_weights
+        if isinstance(w, dict):
+            mse_weight = float(w.get('mse', mse_weight))
+            esr_weight = float(w.get('esr', esr_weight))
+            loss_weights_found = True
+            
+    # 2. Key Fallback: functions if Pydantic model ignores 'loss_weights'
+    if not loss_weights_found and args.config:
+        import yaml
+        try:
+            with open(args.config, 'r') as f:
+                raw_conf = yaml.safe_load(f)
+                if 'loss_weights' in raw_conf:
+                    mse_weight = float(raw_conf['loss_weights'].get('mse', mse_weight))
+                    esr_weight = float(raw_conf['loss_weights'].get('esr', esr_weight))
+                    print(f"Loaded loss weights from YAML: MSE={mse_weight}, ESR={esr_weight}")
+        except Exception as e:
+            print(f"Warning: Failed to parse raw config for loss weights: {e}")
+
+    print(f"Training with Loss Weights -> MSE: {mse_weight}, ESR: {esr_weight}")
+
     loss_fn = CombinedLoss({
-        MSELoss(): 1.0,
-        ESRLoss(): 0.5
+        MSELoss(): mse_weight,
+        ESRLoss(): esr_weight
     })
     
     # Secondary validation metrics
