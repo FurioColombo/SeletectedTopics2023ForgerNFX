@@ -21,7 +21,7 @@ scheduler_params:
   patience: 4               # Wait epochs before reducing
   min_lr: 1.0e-6            # Minimum LR floor
 
-len_weights:
+loss_weights:
   mse: 100.0
   esr: 0.5
   spectral: 1.0
